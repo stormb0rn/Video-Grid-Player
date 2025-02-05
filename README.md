@@ -8,3 +8,5 @@ How did I develop it?
 Bolt.new for UI and Cursor for the rest.
 
 It's the first extension I build.
+
+Icon from flaticon.com
