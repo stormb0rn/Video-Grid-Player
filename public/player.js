@@ -68,6 +68,15 @@ function createVideoElement(file) {
   const videoContainer = document.createElement('div');
   videoContainer.className = 'video-container';
   
+  // Add mouse enter/leave event listeners for audio control
+  videoContainer.addEventListener('mouseenter', () => {
+    video.muted = false;
+  });
+  
+  videoContainer.addEventListener('mouseleave', () => {
+    video.muted = true;
+  });
+  
   const videoWrapper = document.createElement('div');
   videoWrapper.className = 'video-wrapper';
   
@@ -144,4 +153,4 @@ function handleDownloadAll() {
       a.click();
     }, index * 500); // 500ms delay between each download
   });
-} 
+}
