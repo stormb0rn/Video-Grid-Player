@@ -142,4 +142,26 @@ video {
   font-size: 0.9rem;
   margin-top: -1rem;
   margin-bottom: 1rem;
+}
+
+.or-divider {
+  color: #6b7280;
+  margin: 15px 0;
+}
+
+.folder-button {
+  background: #3b82f6;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  margin: 0 auto 15px auto;
+  display: block;
+}
+
+.folder-button:hover {
+  background: #2563eb;
 } 

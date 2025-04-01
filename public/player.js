@@ -3,6 +3,7 @@ const videoGrid = document.getElementById('videoGrid');
 const currentCount = document.getElementById('currentCount');
 const MAX_VIDEOS = 1000;
 const downloadAllButton = document.getElementById('downloadAll');
+const folderSelectButton = document.getElementById('folderSelect');
 
 // Prevent default drag behaviors
 ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
@@ -35,6 +36,55 @@ function unhighlight(e) {
 // Handle dropped files
 dropZone.addEventListener('drop', handleDrop, false);
 
+// 处理文件夹选择按钮点击事件
+folderSelectButton.addEventListener('click', handleFolderSelect, false);
+
+function handleFolderSelect() {
+  // 创建一个隐藏的文件输入元素
+  const fileInput = document.createElement('input');
+  fileInput.type = 'file';
+  fileInput.webkitdirectory = true; // 允许选择文件夹
+  fileInput.directory = true; // Firefox支持
+  fileInput.multiple = true;
+  
+  // 监听文件选择事件
+  fileInput.addEventListener('change', (e) => {
+    const files = Array.from(e.target.files);
+    
+    // 筛选视频文件
+    const videoFiles = files.filter(file => file.type.startsWith('video/'));
+    
+    // 计算还能添加多少视频
+    const currentVideoCount = videoGrid.children.length;
+    const remainingSlots = MAX_VIDEOS - currentVideoCount;
+    
+    if (remainingSlots <= 0) {
+      alert('已达到最大视频数量限制');
+      return;
+    }
+    
+    // 限制添加数量
+    const filesToProcess = videoFiles.slice(0, remainingSlots);
+    
+    // 如果没有发现视频文件
+    if (filesToProcess.length === 0) {
+      alert('所选文件夹中未找到视频文件');
+      return;
+    }
+    
+    // 处理每个视频文件
+    filesToProcess.forEach(file => {
+      createVideoElement(file);
+    });
+    
+    // 显示添加了多少视频
+    alert(`成功添加 ${filesToProcess.length} 个视频文件`);
+  });
+  
+  // 触发文件选择对话框
+  fileInput.click();
+}
+
 function updateVideoCount() {
   const count = videoGrid.children.length;
   currentCount.textContent = count;
@@ -42,26 +92,144 @@ function updateVideoCount() {
 
 function handleDrop(e) {
   const dt = e.dataTransfer;
-  const files = [...dt.files];
   
-  // Filter for video files only
+  // 处理文件和文件夹
+  if (dt.items) {
+    // 使用DataTransferItemList接口处理文件夹
+    handleDropItems(Array.from(dt.items));
+  } else {
+    // 如果浏览器不支持items，则只处理文件
+    const files = [...dt.files];
+    processVideoFiles(files);
+  }
+}
+
+// 处理拖放的items（可能包含文件夹）
+async function handleDropItems(items) {
+  const allFiles = [];
+  
+  // 递归处理所有项目
+  const promises = items.map(async (item) => {
+    if (item.kind === 'file') {
+      const entry = item.webkitGetAsEntry ? item.webkitGetAsEntry() : item.getAsEntry();
+      
+      if (entry) {
+        // 如果是文件夹
+        if (entry.isDirectory) {
+          const dirFiles = await readDirectoryEntries(entry);
+          allFiles.push(...dirFiles);
+        }
+        // 如果是文件
+        else if (entry.isFile) {
+          const file = await getFileFromEntry(entry);
+          if (file) allFiles.push(file);
+        }
+      } else {
+        // 如果不支持entry API，直接获取文件
+        const file = await getAsFile(item);
+        if (file) allFiles.push(file);
+      }
+    }
+  });
+  
+  // 等待所有文件处理完成
+  await Promise.all(promises);
+  
+  // 处理所有收集到的文件
+  processVideoFiles(allFiles);
+}
+
+// 从文件夹条目读取所有文件
+async function readDirectoryEntries(dirEntry) {
+  const files = [];
+  
+  // 读取目录内容
+  const readEntries = (dirReader) => {
+    return new Promise((resolve) => {
+      dirReader.readEntries(async (entries) => {
+        if (entries.length === 0) {
+          resolve();
+          return;
+        }
+        
+        // 处理每个条目
+        const entryPromises = entries.map(async (entry) => {
+          if (entry.isDirectory) {
+            // 递归读取子目录
+            const subFiles = await readDirectoryEntries(entry);
+            files.push(...subFiles);
+          } else if (entry.isFile) {
+            // 添加文件
+            const file = await getFileFromEntry(entry);
+            if (file) files.push(file);
+          }
+        });
+        
+        await Promise.all(entryPromises);
+        
+        // 递归读取更多条目（目录可能一次读不完）
+        await readEntries(dirReader);
+      }, (error) => {
+        console.error('读取目录出错:', error);
+        resolve();
+      });
+    });
+  };
+  
+  await readEntries(dirEntry.createReader());
+  return files;
+}
+
+// 从文件条目获取File对象
+function getFileFromEntry(fileEntry) {
+  return new Promise((resolve) => {
+    fileEntry.file((file) => {
+      resolve(file);
+    }, (error) => {
+      console.error('获取文件出错:', error);
+      resolve(null);
+    });
+  });
+}
+
+// 从DataTransferItem获取文件
+function getAsFile(item) {
+  return new Promise((resolve) => {
+    const file = item.getAsFile();
+    resolve(file);
+  });
+}
+
+// 处理视频文件
+function processVideoFiles(files) {
+  // 筛选视频文件
   const videoFiles = files.filter(file => file.type.startsWith('video/'));
   
-  // Calculate how many more videos we can add
+  // 计算还能添加多少视频
   const currentVideoCount = videoGrid.children.length;
   const remainingSlots = MAX_VIDEOS - currentVideoCount;
   
   if (remainingSlots <= 0) {
-    alert('Maximum video limit reached');
+    alert('已达到最大视频数量限制');
     return;
   }
   
-  // Limit to remaining slots
+  // 限制添加数量
   const filesToProcess = videoFiles.slice(0, remainingSlots);
   
-  filesToProcess.forEach(file => {
-    createVideoElement(file);
-  });
+  if (filesToProcess.length > 0) {
+    filesToProcess.forEach(file => {
+      createVideoElement(file);
+    });
+    
+    // 当文件较多时提示添加成功
+    if (filesToProcess.length > 1) {
+      alert(`成功添加 ${filesToProcess.length} 个视频文件`);
+    }
+  } else if (files.length > 0) {
+    // 当有文件但没有视频文件时提示
+    alert('未找到有效的视频文件');
+  }
 }
 
 function createVideoElement(file) {
