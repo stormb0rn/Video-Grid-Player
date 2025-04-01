@@ -1,7 +1,7 @@
 const dropZone = document.getElementById('dropZone');
 const videoGrid = document.getElementById('videoGrid');
 const currentCount = document.getElementById('currentCount');
-const MAX_VIDEOS = 100;
+const MAX_VIDEOS = 1000;
 const downloadAllButton = document.getElementById('downloadAll');
 
 // Prevent default drag behaviors
