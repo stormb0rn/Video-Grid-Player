@@ -4,6 +4,14 @@ const currentCount = document.getElementById('currentCount');
 const MAX_VIDEOS = 1000;
 const downloadAllButton = document.getElementById('downloadAll');
 const folderSelectButton = document.getElementById('folderSelect');
+const statusText = document.getElementById('statusText');
+
+// 设置状态文本的辅助函数
+function setStatus(message, isError = false) {
+  statusText.textContent = message;
+  statusText.style.color = isError ? '#ef4444' : '#9ca3af';
+  console.log(isError ? 'Error: ' : 'Status: ', message);
+}
 
 // 支持的媒体类型
 const SUPPORTED_TYPES = {
@@ -11,36 +19,69 @@ const SUPPORTED_TYPES = {
   image: ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml']
 };
 
-// Prevent default drag behaviors
+// 确保DOM元素已加载
+document.addEventListener('DOMContentLoaded', function() {
+  setStatus('页面已加载，等待媒体文件...');
+
+  // 确保我们有所有需要的元素
+  if (!dropZone) {
+    console.error('找不到拖放区域元素');
+    return;
+  }
+
+  // 设置拖放事件
+  initDragAndDrop();
+});
+
+// 初始化拖放功能
+function initDragAndDrop() {
+  // 直接在HTML元素上添加事件
+  dropZone.addEventListener('dragenter', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    setStatus('文件拖放中...');
+    this.classList.add('dragover');
+  }, false);
+
+  dropZone.addEventListener('dragover', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    this.classList.add('dragover');
+  }, false);
+
+  dropZone.addEventListener('dragleave', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    this.classList.remove('dragover');
+  }, false);
+
+  dropZone.addEventListener('drop', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    this.classList.remove('dragover');
+    setStatus('处理拖放的文件...');
+    
+    handleDrop(e);
+  }, false);
+
+  // 添加点击来触发文件选择
+  dropZone.addEventListener('click', function(e) {
+    // 如果点击的不是按钮而是拖放区域，则触发文件选择
+    if (e.target !== folderSelectButton && !e.target.closest('#folderSelect')) {
+      handleFolderSelect();
+    }
+  });
+
+  setStatus('拖放功能已初始化');
+}
+
+// 预防默认行为的函数 - 用于整个文档
 ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-  dropZone.addEventListener(eventName, preventDefaults, false);
-  document.body.addEventListener(eventName, preventDefaults, false);
+  document.body.addEventListener(eventName, function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+  }, false);
 });
-
-function preventDefaults(e) {
-  e.preventDefault();
-  e.stopPropagation();
-}
-
-// Handle drag enter/leave visual feedback
-['dragenter', 'dragover'].forEach(eventName => {
-  dropZone.addEventListener(eventName, highlight, false);
-});
-
-['dragleave', 'drop'].forEach(eventName => {
-  dropZone.addEventListener(eventName, unhighlight, false);
-});
-
-function highlight(e) {
-  dropZone.classList.add('dragover');
-}
-
-function unhighlight(e) {
-  dropZone.classList.remove('dragover');
-}
-
-// Handle dropped files
-dropZone.addEventListener('drop', handleDrop, false);
 
 // 处理文件夹选择按钮点击事件
 folderSelectButton.addEventListener('click', handleFolderSelect, false);
@@ -53,9 +94,12 @@ function handleFolderSelect() {
   fileInput.directory = true; // Firefox支持
   fileInput.multiple = true;
   
+  setStatus('打开文件夹选择对话框...');
+  
   // 监听文件选择事件
   fileInput.addEventListener('change', (e) => {
     const files = Array.from(e.target.files);
+    setStatus(`检测到 ${files.length} 个文件，筛选媒体文件...`);
     
     // 筛选媒体文件
     const mediaFiles = files.filter(file => {
@@ -64,10 +108,11 @@ function handleFolderSelect() {
     });
     
     // 计算还能添加多少媒体文件
-    const currentCount = videoGrid.children.length;
-    const remainingSlots = MAX_VIDEOS - currentCount;
+    const currentMediaCount = videoGrid.children.length;
+    const remainingSlots = MAX_VIDEOS - currentMediaCount;
     
     if (remainingSlots <= 0) {
+      setStatus('已达到最大媒体文件数量限制', true);
       alert('已达到最大媒体文件数量限制');
       return;
     }
@@ -77,9 +122,12 @@ function handleFolderSelect() {
     
     // 如果没有发现媒体文件
     if (filesToProcess.length === 0) {
+      setStatus('所选文件夹中未找到视频或图片文件', true);
       alert('所选文件夹中未找到视频或图片文件');
       return;
     }
+    
+    setStatus(`处理 ${filesToProcess.length} 个媒体文件...`);
     
     // 处理每个媒体文件
     filesToProcess.forEach(file => {
@@ -90,6 +138,7 @@ function handleFolderSelect() {
       }
     });
     
+    setStatus(`成功添加 ${filesToProcess.length} 个媒体文件`);
     // 显示添加了多少媒体文件
     alert(`成功添加 ${filesToProcess.length} 个媒体文件`);
   });
@@ -103,17 +152,55 @@ function updateVideoCount() {
   currentCount.textContent = count;
 }
 
+// 将handleDrop函数修改为更安全的实现
 function handleDrop(e) {
-  const dt = e.dataTransfer;
-  
-  // 处理文件和文件夹
-  if (dt.items) {
-    // 使用DataTransferItemList接口处理文件夹
-    handleDropItems(Array.from(dt.items));
-  } else {
-    // 如果浏览器不支持items，则只处理文件
-    const files = [...dt.files];
-    processVideoFiles(files);
+  setStatus('开始处理拖放文件...');
+  try {
+    const dt = e.dataTransfer;
+    
+    // 首先尝试最简单的方法 - 直接获取文件
+    if (dt.files && dt.files.length > 0) {
+      setStatus(`检测到 ${dt.files.length} 个文件，处理中...`);
+      processVideoFiles(Array.from(dt.files));
+      return;
+    }
+    
+    // 如果没有文件或需要处理文件夹，尝试items API
+    if (dt.items && dt.items.length > 0) {
+      setStatus(`检测到 ${dt.items.length} 个项目，使用高级API处理...`);
+      
+      // 直接提取所有文件，不考虑文件夹结构
+      const files = [];
+      for (let i = 0; i < dt.items.length; i++) {
+        const item = dt.items[i];
+        if (item.kind === 'file') {
+          const file = item.getAsFile();
+          if (file) files.push(file);
+        }
+      }
+      
+      if (files.length > 0) {
+        setStatus(`找到 ${files.length} 个顶级文件`);
+        processVideoFiles(files);
+        
+        // 尝试使用高级API处理可能的文件夹
+        try {
+          handleDropItems(Array.from(dt.items));
+        } catch (innerError) {
+          console.error('高级文件夹处理失败:', innerError);
+          // 已经处理了顶级文件，所以继续
+        }
+      } else {
+        setStatus('没有找到文件，尝试处理文件夹...', true);
+        // 尝试使用高级API
+        handleDropItems(Array.from(dt.items));
+      }
+    } else {
+      setStatus('没有检测到文件或文件夹', true);
+    }
+  } catch (error) {
+    console.error('处理拖放时出错:', error);
+    setStatus('拖放处理失败，请尝试使用"选择本地文件夹"按钮', true);
   }
 }
 
@@ -124,7 +211,7 @@ async function handleDropItems(items) {
   // 递归处理所有项目
   const promises = items.map(async (item) => {
     if (item.kind === 'file') {
-      const entry = item.webkitGetAsEntry ? item.webkitGetAsEntry() : item.getAsEntry();
+      const entry = item.webkitGetAsEntry ? item.webkitGetAsEntry() : (item.getAsEntry ? item.getAsEntry() : null);
       
       if (entry) {
         // 如果是文件夹
@@ -139,17 +226,24 @@ async function handleDropItems(items) {
         }
       } else {
         // 如果不支持entry API，直接获取文件
-        const file = await getAsFile(item);
+        const file = item.getAsFile();
         if (file) allFiles.push(file);
       }
     }
   });
   
-  // 等待所有文件处理完成
-  await Promise.all(promises);
-  
-  // 处理所有收集到的文件
-  processVideoFiles(allFiles);
+  try {
+    // 等待所有文件处理完成
+    await Promise.all(promises);
+    
+    // 处理所有收集到的文件
+    processVideoFiles(allFiles);
+  } catch (error) {
+    console.error('处理拖放项目时出错:', error);
+    // 降级处理：如果高级API失败，尝试基本的文件处理
+    const files = items.map(item => item.getAsFile()).filter(file => file !== null);
+    processVideoFiles(files);
+  }
 }
 
 // 从文件夹条目读取所有文件

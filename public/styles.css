@@ -19,11 +19,15 @@ h1 {
   margin-bottom: 20px;
   background: #1e222a;
   transition: all 0.3s ease;
+  cursor: pointer;
+  position: relative;
+  z-index: 10;
 }
 
 .drop-zone.dragover {
   background: #262b35;
-  border-color: #4d5562;
+  border-color: #3b82f6;
+  box-shadow: 0 0 8px rgba(59, 130, 246, 0.5);
 }
 
 .upload-icon {
@@ -171,4 +175,19 @@ video {
 
 .folder-button:hover {
   background: #2563eb;
+}
+
+.drop-tip {
+  color: #8c95a3;
+  font-size: 0.9rem;
+  margin-top: 5px;
+}
+
+.status-area {
+  margin-top: 20px;
+  padding: 10px;
+  background: #1e222a;
+  border-radius: 8px;
+  color: #9ca3af;
+  font-size: 0.9rem;
 } 
