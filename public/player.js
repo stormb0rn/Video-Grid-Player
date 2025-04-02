@@ -5,6 +5,35 @@ const MAX_VIDEOS = 1000;
 const downloadAllButton = document.getElementById('downloadAll');
 const folderSelectButton = document.getElementById('folderSelect');
 const statusText = document.getElementById('statusText');
+const toastContainer = document.getElementById('toastContainer');
+
+// 显示Toast提示
+function showToast(message, type = 'info', duration = 3000) {
+  // 创建Toast元素
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  toast.textContent = message;
+  
+  // 添加到容器
+  toastContainer.appendChild(toast);
+  
+  // 显示动画
+  setTimeout(() => {
+    toast.classList.add('show');
+  }, 10);
+  
+  // 自动移除
+  setTimeout(() => {
+    toast.classList.remove('show');
+    // 移除元素
+    setTimeout(() => {
+      toast.remove();
+    }, 300); // 等待淡出动画完成
+  }, duration);
+  
+  // 同时记录到控制台
+  console.log(`Toast (${type}):`, message);
+}
 
 // 设置状态文本的辅助函数
 function setStatus(message, isError = false) {
@@ -113,7 +142,7 @@ function handleFolderSelect() {
     
     if (remainingSlots <= 0) {
       setStatus('已达到最大媒体文件数量限制', true);
-      alert('已达到最大媒体文件数量限制');
+      showToast('已达到最大媒体文件数量限制', 'error');
       return;
     }
     
@@ -123,7 +152,7 @@ function handleFolderSelect() {
     // 如果没有发现媒体文件
     if (filesToProcess.length === 0) {
       setStatus('所选文件夹中未找到视频或图片文件', true);
-      alert('所选文件夹中未找到视频或图片文件');
+      showToast('所选文件夹中未找到视频或图片文件', 'error');
       return;
     }
     
@@ -140,7 +169,7 @@ function handleFolderSelect() {
     
     setStatus(`成功添加 ${filesToProcess.length} 个媒体文件`);
     // 显示添加了多少媒体文件
-    alert(`成功添加 ${filesToProcess.length} 个媒体文件`);
+    showToast(`成功添加 ${filesToProcess.length} 个媒体文件`, 'success');
   });
   
   // 触发文件选择对话框
@@ -152,7 +181,7 @@ function updateVideoCount() {
   currentCount.textContent = count;
 }
 
-// 将handleDrop函数修改为更安全的实现
+// 将handleDrop函数修改为使用Toast
 function handleDrop(e) {
   setStatus('开始处理拖放文件...');
   try {
@@ -197,10 +226,12 @@ function handleDrop(e) {
       }
     } else {
       setStatus('没有检测到文件或文件夹', true);
+      showToast('没有检测到文件或文件夹', 'error');
     }
   } catch (error) {
     console.error('处理拖放时出错:', error);
     setStatus('拖放处理失败，请尝试使用"选择本地文件夹"按钮', true);
+    showToast('拖放处理失败，请尝试使用"选择本地文件夹"按钮', 'error');
   }
 }
 
@@ -320,7 +351,7 @@ function processVideoFiles(files) {
   const remainingSlots = MAX_VIDEOS - currentCount;
   
   if (remainingSlots <= 0) {
-    alert('已达到最大媒体文件数量限制');
+    showToast('已达到最大媒体文件数量限制', 'error');
     return;
   }
   
@@ -338,11 +369,13 @@ function processVideoFiles(files) {
     
     // 当文件较多时提示添加成功
     if (filesToProcess.length > 1) {
-      alert(`成功添加 ${filesToProcess.length} 个媒体文件`);
+      showToast(`成功添加 ${filesToProcess.length} 个媒体文件`, 'success');
+    } else if (filesToProcess.length === 1) {
+      showToast(`成功添加文件: ${filesToProcess[0].name}`, 'success');
     }
   } else if (files.length > 0) {
     // 当有文件但没有支持的媒体文件时提示
-    alert('未找到有效的视频或图片文件');
+    showToast('未找到有效的视频或图片文件', 'error');
   }
 }
 
