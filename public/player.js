@@ -7,68 +7,68 @@ const folderSelectButton = document.getElementById('folderSelect');
 const statusText = document.getElementById('statusText');
 const toastContainer = document.getElementById('toastContainer');
 
-// 显示Toast提示
+// Show toast notification
 function showToast(message, type = 'info', duration = 3000) {
-  // 创建Toast元素
+  // Create toast element
   const toast = document.createElement('div');
   toast.className = `toast ${type}`;
   toast.textContent = message;
   
-  // 添加到容器
+  // Add to container
   toastContainer.appendChild(toast);
   
-  // 显示动画
+  // Show animation
   setTimeout(() => {
     toast.classList.add('show');
   }, 10);
   
-  // 自动移除
+  // Auto remove
   setTimeout(() => {
     toast.classList.remove('show');
-    // 移除元素
+    // Remove element
     setTimeout(() => {
       toast.remove();
-    }, 300); // 等待淡出动画完成
+    }, 300); // Wait for fade out animation
   }, duration);
   
-  // 同时记录到控制台
+  // Log to console
   console.log(`Toast (${type}):`, message);
 }
 
-// 设置状态文本的辅助函数
+// Set status text
 function setStatus(message, isError = false) {
   statusText.textContent = message;
   statusText.style.color = isError ? '#ef4444' : '#9ca3af';
   console.log(isError ? 'Error: ' : 'Status: ', message);
 }
 
-// 支持的媒体类型
+// Supported media types
 const SUPPORTED_TYPES = {
   video: ['video/'],
   image: ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml']
 };
 
-// 确保DOM元素已加载
+// Ensure DOM elements are loaded
 document.addEventListener('DOMContentLoaded', function() {
-  setStatus('页面已加载，等待媒体文件...');
+  setStatus('Page loaded, waiting for media files...');
 
-  // 确保我们有所有需要的元素
+  // Ensure we have all required elements
   if (!dropZone) {
-    console.error('找不到拖放区域元素');
+    console.error('Drop zone element not found');
     return;
   }
 
-  // 设置拖放事件
+  // Set up drag and drop events
   initDragAndDrop();
 });
 
-// 初始化拖放功能
+// Initialize drag and drop functionality
 function initDragAndDrop() {
-  // 直接在HTML元素上添加事件
+  // Directly add events to HTML element
   dropZone.addEventListener('dragenter', function(e) {
     e.preventDefault();
     e.stopPropagation();
-    setStatus('文件拖放中...');
+    setStatus('File being dragged in...');
     this.classList.add('dragover');
   }, false);
 
@@ -88,23 +88,23 @@ function initDragAndDrop() {
     e.preventDefault();
     e.stopPropagation();
     this.classList.remove('dragover');
-    setStatus('处理拖放的文件...');
+    setStatus('Processing dropped files...');
     
     handleDrop(e);
   }, false);
 
-  // 添加点击来触发文件选择
+  // Add click to trigger file selection
   dropZone.addEventListener('click', function(e) {
-    // 如果点击的不是按钮而是拖放区域，则触发文件选择
+    // If click is not on the button but on the drop zone, trigger folder select
     if (e.target !== folderSelectButton && !e.target.closest('#folderSelect')) {
       handleFolderSelect();
     }
   });
 
-  setStatus('拖放功能已初始化');
+  setStatus('Drag and drop initialized');
 }
 
-// 预防默认行为的函数 - 用于整个文档
+// Prevent default actions for document
 ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
   document.body.addEventListener(eventName, function(e) {
     e.preventDefault();
@@ -112,53 +112,53 @@ function initDragAndDrop() {
   }, false);
 });
 
-// 处理文件夹选择按钮点击事件
+// Handle folder select button click
 folderSelectButton.addEventListener('click', handleFolderSelect, false);
 
 function handleFolderSelect() {
-  // 创建一个隐藏的文件输入元素
+  // Create a hidden file input element
   const fileInput = document.createElement('input');
   fileInput.type = 'file';
-  fileInput.webkitdirectory = true; // 允许选择文件夹
-  fileInput.directory = true; // Firefox支持
+  fileInput.webkitdirectory = true; // Allow folder selection
+  fileInput.directory = true; // Firefox support
   fileInput.multiple = true;
   
-  setStatus('打开文件夹选择对话框...');
+  setStatus('Opening folder selection dialog...');
   
-  // 监听文件选择事件
+  // Listen for file selection event
   fileInput.addEventListener('change', (e) => {
     const files = Array.from(e.target.files);
-    setStatus(`检测到 ${files.length} 个文件，筛选媒体文件...`);
+    setStatus(`Detected ${files.length} files, filtering media files...`);
     
-    // 筛选媒体文件
+    // Filter media files
     const mediaFiles = files.filter(file => {
       return SUPPORTED_TYPES.video.some(type => file.type.startsWith(type)) || 
              SUPPORTED_TYPES.image.some(type => file.type === type);
     });
     
-    // 计算还能添加多少媒体文件
+    // Calculate how many more media files we can add
     const currentMediaCount = videoGrid.children.length;
     const remainingSlots = MAX_VIDEOS - currentMediaCount;
     
     if (remainingSlots <= 0) {
-      setStatus('已达到最大媒体文件数量限制', true);
-      showToast('已达到最大媒体文件数量限制', 'error');
+      setStatus('Maximum file limit reached', true);
+      showToast('Maximum file limit reached', 'error');
       return;
     }
     
-    // 限制添加数量
+    // Limit to remaining slots
     const filesToProcess = mediaFiles.slice(0, remainingSlots);
     
-    // 如果没有发现媒体文件
+    // If no media files found
     if (filesToProcess.length === 0) {
-      setStatus('所选文件夹中未找到视频或图片文件', true);
-      showToast('所选文件夹中未找到视频或图片文件', 'error');
+      setStatus('No videos or images found in the selected folder', true);
+      showToast('No videos or images found in the selected folder', 'error');
       return;
     }
     
-    setStatus(`处理 ${filesToProcess.length} 个媒体文件...`);
+    setStatus(`Processing ${filesToProcess.length} media files...`);
     
-    // 处理每个媒体文件
+    // Process each media file
     filesToProcess.forEach(file => {
       if (SUPPORTED_TYPES.video.some(type => file.type.startsWith(type))) {
         createVideoElement(file);
@@ -167,12 +167,12 @@ function handleFolderSelect() {
       }
     });
     
-    setStatus(`成功添加 ${filesToProcess.length} 个媒体文件`);
-    // 显示添加了多少媒体文件
-    showToast(`成功添加 ${filesToProcess.length} 个媒体文件`, 'success');
+    setStatus(`Successfully added ${filesToProcess.length} media files`);
+    // Show how many media files were added
+    showToast(`Successfully added ${filesToProcess.length} media files`, 'success');
   });
   
-  // 触发文件选择对话框
+  // Trigger file selection dialog
   fileInput.click();
 }
 
@@ -181,24 +181,24 @@ function updateVideoCount() {
   currentCount.textContent = count;
 }
 
-// 将handleDrop函数修改为使用Toast
+// Handle drop with better error handling
 function handleDrop(e) {
-  setStatus('开始处理拖放文件...');
+  setStatus('Processing dropped files...');
   try {
     const dt = e.dataTransfer;
     
-    // 首先尝试最简单的方法 - 直接获取文件
+    // First try the simplest method - directly get files
     if (dt.files && dt.files.length > 0) {
-      setStatus(`检测到 ${dt.files.length} 个文件，处理中...`);
+      setStatus(`Detected ${dt.files.length} files, processing...`);
       processVideoFiles(Array.from(dt.files));
       return;
     }
     
-    // 如果没有文件或需要处理文件夹，尝试items API
+    // If no files or we need to process folders, try items API
     if (dt.items && dt.items.length > 0) {
-      setStatus(`检测到 ${dt.items.length} 个项目，使用高级API处理...`);
+      setStatus(`Detected ${dt.items.length} items, using advanced API...`);
       
-      // 直接提取所有文件，不考虑文件夹结构
+      // Extract all files directly, regardless of folder structure
       const files = [];
       for (let i = 0; i < dt.items.length; i++) {
         const item = dt.items[i];
@@ -209,54 +209,54 @@ function handleDrop(e) {
       }
       
       if (files.length > 0) {
-        setStatus(`找到 ${files.length} 个顶级文件`);
+        setStatus(`Found ${files.length} top-level files`);
         processVideoFiles(files);
         
-        // 尝试使用高级API处理可能的文件夹
+        // Try to use advanced API to handle potential folders
         try {
           handleDropItems(Array.from(dt.items));
         } catch (innerError) {
-          console.error('高级文件夹处理失败:', innerError);
-          // 已经处理了顶级文件，所以继续
+          console.error('Advanced folder processing failed:', innerError);
+          // Already processed top-level files, so continue
         }
       } else {
-        setStatus('没有找到文件，尝试处理文件夹...', true);
-        // 尝试使用高级API
+        setStatus('No files found, trying to process folders...', true);
+        // Try to use advanced API
         handleDropItems(Array.from(dt.items));
       }
     } else {
-      setStatus('没有检测到文件或文件夹', true);
-      showToast('没有检测到文件或文件夹', 'error');
+      setStatus('No files or folders detected', true);
+      showToast('No files or folders detected', 'error');
     }
   } catch (error) {
-    console.error('处理拖放时出错:', error);
-    setStatus('拖放处理失败，请尝试使用"选择本地文件夹"按钮', true);
-    showToast('拖放处理失败，请尝试使用"选择本地文件夹"按钮', 'error');
+    console.error('Error processing drop:', error);
+    setStatus('Drop processing failed, try using the "Select Folder" button', true);
+    showToast('Drop processing failed, try using the "Select Folder" button', 'error');
   }
 }
 
-// 处理拖放的items（可能包含文件夹）
+// Handle dropped items (possibly containing folders)
 async function handleDropItems(items) {
   const allFiles = [];
   
-  // 递归处理所有项目
+  // Process all items recursively
   const promises = items.map(async (item) => {
     if (item.kind === 'file') {
       const entry = item.webkitGetAsEntry ? item.webkitGetAsEntry() : (item.getAsEntry ? item.getAsEntry() : null);
       
       if (entry) {
-        // 如果是文件夹
+        // If it's a folder
         if (entry.isDirectory) {
           const dirFiles = await readDirectoryEntries(entry);
           allFiles.push(...dirFiles);
         }
-        // 如果是文件
+        // If it's a file
         else if (entry.isFile) {
           const file = await getFileFromEntry(entry);
           if (file) allFiles.push(file);
         }
       } else {
-        // 如果不支持entry API，直接获取文件
+        // If entry API not supported, get file directly
         const file = item.getAsFile();
         if (file) allFiles.push(file);
       }
@@ -264,24 +264,24 @@ async function handleDropItems(items) {
   });
   
   try {
-    // 等待所有文件处理完成
+    // Wait for all file processing to complete
     await Promise.all(promises);
     
-    // 处理所有收集到的文件
+    // Process all collected files
     processVideoFiles(allFiles);
   } catch (error) {
-    console.error('处理拖放项目时出错:', error);
-    // 降级处理：如果高级API失败，尝试基本的文件处理
+    console.error('Error processing dropped items:', error);
+    // Fallback handling: if advanced API fails, try basic file processing
     const files = items.map(item => item.getAsFile()).filter(file => file !== null);
     processVideoFiles(files);
   }
 }
 
-// 从文件夹条目读取所有文件
+// Read entries from a directory
 async function readDirectoryEntries(dirEntry) {
   const files = [];
   
-  // 读取目录内容
+  // Read directory contents
   const readEntries = (dirReader) => {
     return new Promise((resolve) => {
       dirReader.readEntries(async (entries) => {
@@ -290,14 +290,14 @@ async function readDirectoryEntries(dirEntry) {
           return;
         }
         
-        // 处理每个条目
+        // Process each entry
         const entryPromises = entries.map(async (entry) => {
           if (entry.isDirectory) {
-            // 递归读取子目录
+            // Recursively read subdirectories
             const subFiles = await readDirectoryEntries(entry);
             files.push(...subFiles);
           } else if (entry.isFile) {
-            // 添加文件
+            // Add file
             const file = await getFileFromEntry(entry);
             if (file) files.push(file);
           }
@@ -305,10 +305,10 @@ async function readDirectoryEntries(dirEntry) {
         
         await Promise.all(entryPromises);
         
-        // 递归读取更多条目（目录可能一次读不完）
+        // Recursively read more entries (directory might not be read completely in one go)
         await readEntries(dirReader);
       }, (error) => {
-        console.error('读取目录出错:', error);
+        console.error('Error reading directory:', error);
         resolve();
       });
     });
@@ -318,44 +318,36 @@ async function readDirectoryEntries(dirEntry) {
   return files;
 }
 
-// 从文件条目获取File对象
+// Get File object from file entry
 function getFileFromEntry(fileEntry) {
   return new Promise((resolve) => {
     fileEntry.file((file) => {
       resolve(file);
     }, (error) => {
-      console.error('获取文件出错:', error);
+      console.error('Error getting file:', error);
       resolve(null);
     });
   });
 }
 
-// 从DataTransferItem获取文件
-function getAsFile(item) {
-  return new Promise((resolve) => {
-    const file = item.getAsFile();
-    resolve(file);
-  });
-}
-
-// 处理视频文件
+// Process video files
 function processVideoFiles(files) {
-  // 筛选视频和图片文件
+  // Filter video and image files
   const mediaFiles = files.filter(file => {
     return SUPPORTED_TYPES.video.some(type => file.type.startsWith(type)) || 
            SUPPORTED_TYPES.image.some(type => file.type === type);
   });
   
-  // 计算还能添加多少媒体文件
+  // Calculate how many more media files we can add
   const currentCount = videoGrid.children.length;
   const remainingSlots = MAX_VIDEOS - currentCount;
   
   if (remainingSlots <= 0) {
-    showToast('已达到最大媒体文件数量限制', 'error');
+    showToast('Maximum file limit reached', 'error');
     return;
   }
   
-  // 限制添加数量
+  // Limit to remaining slots
   const filesToProcess = mediaFiles.slice(0, remainingSlots);
   
   if (filesToProcess.length > 0) {
@@ -367,15 +359,15 @@ function processVideoFiles(files) {
       }
     });
     
-    // 当文件较多时提示添加成功
+    // Show success message for multi-file addition
     if (filesToProcess.length > 1) {
-      showToast(`成功添加 ${filesToProcess.length} 个媒体文件`, 'success');
+      showToast(`Successfully added ${filesToProcess.length} media files`, 'success');
     } else if (filesToProcess.length === 1) {
-      showToast(`成功添加文件: ${filesToProcess[0].name}`, 'success');
+      showToast(`Added file: ${filesToProcess[0].name}`, 'success');
     }
   } else if (files.length > 0) {
-    // 当有文件但没有支持的媒体文件时提示
-    showToast('未找到有效的视频或图片文件', 'error');
+    // Message if files but no supported media
+    showToast('No videos or images found', 'error');
   }
 }
 
@@ -383,7 +375,7 @@ function createVideoElement(file) {
   const videoContainer = document.createElement('div');
   videoContainer.className = 'video-container';
   
-  // Add mouse enter/leave event listeners for audio control
+  // Add mouse enter/leave events for audio control
   videoContainer.addEventListener('mouseenter', () => {
     video.muted = false;
   });
@@ -441,7 +433,6 @@ function createVideoElement(file) {
   });
 }
 
-// 创建图片元素
 function createImageElement(file) {
   const imageContainer = document.createElement('div');
   imageContainer.className = 'video-container';
@@ -458,7 +449,7 @@ function createImageElement(file) {
   removeButton.innerHTML = '✕';
   removeButton.addEventListener('click', () => {
     imageContainer.remove();
-    URL.revokeObjectURL(image.src); // 清理对象URL
+    URL.revokeObjectURL(image.src); // Clean up the object URL
     updateVideoCount();
     updateDownloadButtonState();
   });
@@ -496,11 +487,12 @@ function handleDownloadAll() {
   
   videos.forEach((container, index) => {
     const video = container.querySelector('video');
+    const img = container.querySelector('img');
     const filename = container.querySelector('.video-filename').textContent;
     
     // Create a temporary anchor element to trigger download
     const a = document.createElement('a');
-    a.href = video.src;
+    a.href = video ? video.src : img.src;
     a.download = filename; // Use original filename
     
     // Trigger download with a small delay between each file

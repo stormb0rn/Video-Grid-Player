@@ -2,32 +2,33 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Video Grid Player</title>
+  <title>Media Grid Player</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <div class="header">
     <div class="header-content">
-      <h1>Video Grid Player</h1>
+      <h1>Media Grid Player</h1>
+      <div class="subtitle">Video & Image Viewer</div>
     </div>
     <button id="downloadAll" class="download-button">Download All</button>
   </div>
   <div class="drop-zone" id="dropZone" ondrop="event.preventDefault();" ondragover="event.preventDefault();">
     <div class="upload-icon">⬆️</div>
-    <p>拖放视频或图片文件、文件夹到这里</p>
-    <p class="drop-tip">（或点击下面按钮选择）</p>
-    <p class="or-divider">或者</p>
-    <button id="folderSelect" class="folder-button">选择本地文件夹</button>
-    <p class="video-count"><span id="currentCount">0</span>/1000 媒体文件 · 最多允许1000个文件</p>
+    <p>Drop videos or images here</p>
+    <p class="drop-tip">(or click to browse)</p>
+    <p class="or-divider">or</p>
+    <button id="folderSelect" class="folder-button">Select Folder</button>
+    <p class="video-count"><span id="currentCount">0</span>/1000 files · Maximum 1000 files allowed</p>
   </div>
   <div class="video-grid" id="videoGrid"></div>
   
-  <!-- 添加一个状态显示区域，用于调试 -->
+  <!-- Status area for debugging -->
   <div class="status-area" id="statusArea">
-    <p>状态: <span id="statusText">就绪</span></p>
+    <p>Status: <span id="statusText">Ready</span></p>
   </div>
   
-  <!-- Toast提示容器 -->
+  <!-- Toast notifications container -->
   <div class="toast-container" id="toastContainer"></div>
   
   <script src="player.js"></script>
