@@ -64,7 +64,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Initialize drag and drop functionality
 function initDragAndDrop() {
-  // Directly add events to HTML element
+  // Add events to the drop zone
   dropZone.addEventListener('dragenter', function(e) {
     e.preventDefault();
     e.stopPropagation();
@@ -93,6 +93,38 @@ function initDragAndDrop() {
     handleDrop(e);
   }, false);
 
+  // Add events to the entire document body to enable drag and drop anywhere
+  document.body.addEventListener('dragenter', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    setStatus('File being dragged in...');
+    dropZone.classList.add('dragover');
+  }, false);
+
+  document.body.addEventListener('dragover', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    dropZone.classList.add('dragover');
+  }, false);
+
+  document.body.addEventListener('dragleave', function(e) {
+    // Only remove highlight if leaving the entire document
+    if(!e.relatedTarget || e.relatedTarget.nodeName === 'HTML') {
+      dropZone.classList.remove('dragover');
+    }
+    e.preventDefault();
+    e.stopPropagation();
+  }, false);
+
+  document.body.addEventListener('drop', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    dropZone.classList.remove('dragover');
+    setStatus('Processing dropped files...');
+    
+    handleDrop(e);
+  }, false);
+
   // Add click to trigger file selection
   dropZone.addEventListener('click', function(e) {
     // If click is not on the button but on the drop zone, trigger folder select
@@ -103,14 +135,6 @@ function initDragAndDrop() {
 
   setStatus('Drag and drop initialized');
 }
-
-// Prevent default actions for document
-['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-  document.body.addEventListener(eventName, function(e) {
-    e.preventDefault();
-    e.stopPropagation();
-  }, false);
-});
 
 // Handle folder select button click
 folderSelectButton.addEventListener('click', handleFolderSelect, false);
