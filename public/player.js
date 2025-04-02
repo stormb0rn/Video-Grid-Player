@@ -5,6 +5,12 @@ const MAX_VIDEOS = 1000;
 const downloadAllButton = document.getElementById('downloadAll');
 const folderSelectButton = document.getElementById('folderSelect');
 
+// 支持的媒体类型
+const SUPPORTED_TYPES = {
+  video: ['video/'],
+  image: ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml']
+};
+
 // Prevent default drag behaviors
 ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
   dropZone.addEventListener(eventName, preventDefaults, false);
@@ -51,34 +57,41 @@ function handleFolderSelect() {
   fileInput.addEventListener('change', (e) => {
     const files = Array.from(e.target.files);
     
-    // 筛选视频文件
-    const videoFiles = files.filter(file => file.type.startsWith('video/'));
+    // 筛选媒体文件
+    const mediaFiles = files.filter(file => {
+      return SUPPORTED_TYPES.video.some(type => file.type.startsWith(type)) || 
+             SUPPORTED_TYPES.image.some(type => file.type === type);
+    });
     
-    // 计算还能添加多少视频
-    const currentVideoCount = videoGrid.children.length;
-    const remainingSlots = MAX_VIDEOS - currentVideoCount;
+    // 计算还能添加多少媒体文件
+    const currentCount = videoGrid.children.length;
+    const remainingSlots = MAX_VIDEOS - currentCount;
     
     if (remainingSlots <= 0) {
-      alert('已达到最大视频数量限制');
+      alert('已达到最大媒体文件数量限制');
       return;
     }
     
     // 限制添加数量
-    const filesToProcess = videoFiles.slice(0, remainingSlots);
+    const filesToProcess = mediaFiles.slice(0, remainingSlots);
     
-    // 如果没有发现视频文件
+    // 如果没有发现媒体文件
     if (filesToProcess.length === 0) {
-      alert('所选文件夹中未找到视频文件');
+      alert('所选文件夹中未找到视频或图片文件');
       return;
     }
     
-    // 处理每个视频文件
+    // 处理每个媒体文件
     filesToProcess.forEach(file => {
-      createVideoElement(file);
+      if (SUPPORTED_TYPES.video.some(type => file.type.startsWith(type))) {
+        createVideoElement(file);
+      } else if (SUPPORTED_TYPES.image.some(type => file.type === type)) {
+        createImageElement(file);
+      }
     });
     
-    // 显示添加了多少视频
-    alert(`成功添加 ${filesToProcess.length} 个视频文件`);
+    // 显示添加了多少媒体文件
+    alert(`成功添加 ${filesToProcess.length} 个媒体文件`);
   });
   
   // 触发文件选择对话框
@@ -202,33 +215,40 @@ function getAsFile(item) {
 
 // 处理视频文件
 function processVideoFiles(files) {
-  // 筛选视频文件
-  const videoFiles = files.filter(file => file.type.startsWith('video/'));
+  // 筛选视频和图片文件
+  const mediaFiles = files.filter(file => {
+    return SUPPORTED_TYPES.video.some(type => file.type.startsWith(type)) || 
+           SUPPORTED_TYPES.image.some(type => file.type === type);
+  });
   
-  // 计算还能添加多少视频
-  const currentVideoCount = videoGrid.children.length;
-  const remainingSlots = MAX_VIDEOS - currentVideoCount;
+  // 计算还能添加多少媒体文件
+  const currentCount = videoGrid.children.length;
+  const remainingSlots = MAX_VIDEOS - currentCount;
   
   if (remainingSlots <= 0) {
-    alert('已达到最大视频数量限制');
+    alert('已达到最大媒体文件数量限制');
     return;
   }
   
   // 限制添加数量
-  const filesToProcess = videoFiles.slice(0, remainingSlots);
+  const filesToProcess = mediaFiles.slice(0, remainingSlots);
   
   if (filesToProcess.length > 0) {
     filesToProcess.forEach(file => {
-      createVideoElement(file);
+      if (SUPPORTED_TYPES.video.some(type => file.type.startsWith(type))) {
+        createVideoElement(file);
+      } else if (SUPPORTED_TYPES.image.some(type => file.type === type)) {
+        createImageElement(file);
+      }
     });
     
     // 当文件较多时提示添加成功
     if (filesToProcess.length > 1) {
-      alert(`成功添加 ${filesToProcess.length} 个视频文件`);
+      alert(`成功添加 ${filesToProcess.length} 个媒体文件`);
     }
   } else if (files.length > 0) {
-    // 当有文件但没有视频文件时提示
-    alert('未找到有效的视频文件');
+    // 当有文件但没有支持的媒体文件时提示
+    alert('未找到有效的视频或图片文件');
   }
 }
 
@@ -292,6 +312,46 @@ function createVideoElement(file) {
       video.style.width = '100%';
     }
   });
+}
+
+// 创建图片元素
+function createImageElement(file) {
+  const imageContainer = document.createElement('div');
+  imageContainer.className = 'video-container';
+  
+  const imageWrapper = document.createElement('div');
+  imageWrapper.className = 'video-wrapper';
+  
+  const image = document.createElement('img');
+  image.src = URL.createObjectURL(file);
+  image.className = 'image-preview';
+  
+  const removeButton = document.createElement('button');
+  removeButton.className = 'remove-video';
+  removeButton.innerHTML = '✕';
+  removeButton.addEventListener('click', () => {
+    imageContainer.remove();
+    URL.revokeObjectURL(image.src); // 清理对象URL
+    updateVideoCount();
+    updateDownloadButtonState();
+  });
+  
+  const imageInfo = document.createElement('div');
+  imageInfo.className = 'video-info';
+  
+  const filename = document.createElement('div');
+  filename.className = 'video-filename';
+  filename.textContent = file.name;
+  
+  imageWrapper.appendChild(image);
+  imageContainer.appendChild(removeButton);
+  imageContainer.appendChild(imageWrapper);
+  imageInfo.appendChild(filename);
+  imageContainer.appendChild(imageInfo);
+  videoGrid.appendChild(imageContainer);
+  
+  updateVideoCount();
+  updateDownloadButtonState();
 }
 
 // Initialize video count
