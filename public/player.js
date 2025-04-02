@@ -168,7 +168,7 @@ function handleFolderSelect() {
     });
     
     setStatus(`Successfully added ${filesToProcess.length} media files`);
-    // Show how many media files were added
+    // Show toast notification without alert dialog
     showToast(`Successfully added ${filesToProcess.length} media files`, 'success');
   });
   
