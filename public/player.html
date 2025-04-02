@@ -4,72 +4,8 @@
   <meta charset="UTF-8">
   <title>Media Grid Player</title>
   <link rel="stylesheet" href="styles.css">
-  <style>
-    .notes-section {
-      margin: 10px auto;
-      max-width: 800px;
-      background-color: #f8f9fa;
-      border-radius: 8px;
-      padding: 0;
-      overflow: hidden;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-    }
-    .notes-header {
-      background-color: #e9ecef;
-      padding: 10px 15px;
-      cursor: pointer;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    .notes-header h3 {
-      margin: 0;
-      font-size: 16px;
-    }
-    .notes-content {
-      padding: 0 15px;
-      max-height: 0;
-      overflow: hidden;
-      transition: max-height 0.3s ease-out;
-    }
-    .notes-section.active .notes-content {
-      max-height: 500px;
-      padding: 15px;
-    }
-    .toggle-icon::after {
-      content: '▼';
-      font-size: 12px;
-      transition: transform 0.3s ease;
-    }
-    .notes-section.active .toggle-icon::after {
-      transform: rotate(180deg);
-    }
-  </style>
 </head>
 <body>
-  <!-- Upcoming features note -->
-  <div class="notes-section" id="notesSection">
-    <div class="notes-header" id="notesHeader">
-      <h3>📝 Upcoming Features</h3>
-      <span class="toggle-icon"></span>
-    </div>
-    <div class="notes-content">
-      <ul>
-        <li>Support for more video and image formats</li>
-        <li>Custom grid layout and sizing</li>
-        <li>Video trimming and editing capabilities</li>
-        <li>Batch file renaming</li>
-        <li>Save and restore playlists</li>
-        <li>Responsive design for mobile devices</li>
-        <li>Multi-language support</li>
-        <li>Cloud storage integration (Google Drive, Dropbox, etc.)</li>
-        <li>Video tagging and categorization</li>
-        <li>Batch export and sharing features</li>
-        <li>Custom video thumbnails</li>
-      </ul>
-    </div>
-  </div>
-
   <div class="header">
     <div class="header-content">
       <h1>Media Grid Player</h1>
@@ -97,11 +33,5 @@
   <div class="toast-container" id="toastContainer"></div>
   
   <script src="player.js"></script>
-  <script>
-    // Toggle notes section
-    document.getElementById('notesHeader').addEventListener('click', function() {
-      document.getElementById('notesSection').classList.toggle('active');
-    });
-  </script>
 </body>
 </html>
