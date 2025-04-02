@@ -187,47 +187,56 @@ function handleDrop(e) {
   try {
     const dt = e.dataTransfer;
     
-    // First try the simplest method - directly get files
+    // Check if we have items API support (Chrome, Safari)
+    if (dt.items && dt.items.length > 0) {
+      setStatus(`Detected ${dt.items.length} items, processing...`);
+      
+      // Create array to hold all detected items
+      let hasFolder = false;
+      
+      // Check if any of the dragged items are folders
+      for (let i = 0; i < dt.items.length; i++) {
+        const item = dt.items[i];
+        if (item.kind === 'file') {
+          const entry = item.webkitGetAsEntry ? item.webkitGetAsEntry() : 
+                        (item.getAsEntry ? item.getAsEntry() : null);
+          
+          if (entry && entry.isDirectory) {
+            hasFolder = true;
+            break;
+          }
+        }
+      }
+      
+      // Process items as directories if any folders detected
+      if (hasFolder) {
+        setStatus('Folders detected, processing contents...');
+        processDroppedItems(dt.items);
+        return;
+      }
+      
+      // If only files, process them directly
+      const files = Array.from(dt.items)
+        .filter(item => item.kind === 'file')
+        .map(item => item.getAsFile())
+        .filter(file => file !== null);
+      
+      if (files.length > 0) {
+        processVideoFiles(files);
+        return;
+      }
+    }
+    
+    // Fallback to files API if items API didn't work or no files found
     if (dt.files && dt.files.length > 0) {
       setStatus(`Detected ${dt.files.length} files, processing...`);
       processVideoFiles(Array.from(dt.files));
       return;
     }
     
-    // If no files or we need to process folders, try items API
-    if (dt.items && dt.items.length > 0) {
-      setStatus(`Detected ${dt.items.length} items, using advanced API...`);
-      
-      // Extract all files directly, regardless of folder structure
-      const files = [];
-      for (let i = 0; i < dt.items.length; i++) {
-        const item = dt.items[i];
-        if (item.kind === 'file') {
-          const file = item.getAsFile();
-          if (file) files.push(file);
-        }
-      }
-      
-      if (files.length > 0) {
-        setStatus(`Found ${files.length} top-level files`);
-        processVideoFiles(files);
-        
-        // Try to use advanced API to handle potential folders
-        try {
-          handleDropItems(Array.from(dt.items));
-        } catch (innerError) {
-          console.error('Advanced folder processing failed:', innerError);
-          // Already processed top-level files, so continue
-        }
-      } else {
-        setStatus('No files found, trying to process folders...', true);
-        // Try to use advanced API
-        handleDropItems(Array.from(dt.items));
-      }
-    } else {
-      setStatus('No files or folders detected', true);
-      showToast('No files or folders detected', 'error');
-    }
+    // No files or folders detected
+    setStatus('No files or folders detected', true);
+    showToast('No files or folders detected', 'error');
   } catch (error) {
     console.error('Error processing drop:', error);
     setStatus('Drop processing failed, try using the "Select Folder" button', true);
@@ -235,7 +244,97 @@ function handleDrop(e) {
   }
 }
 
-// Handle dropped items (possibly containing folders)
+// Process dropped items containing files and folders
+function processDroppedItems(items) {
+  // Convert items to an array
+  const itemsArray = Array.from(items);
+  const entries = [];
+  
+  // Get the file system entries for all items
+  for (let i = 0; i < itemsArray.length; i++) {
+    if (itemsArray[i].kind === 'file') {
+      const entry = itemsArray[i].webkitGetAsEntry ? itemsArray[i].webkitGetAsEntry() :
+                   (itemsArray[i].getAsEntry ? itemsArray[i].getAsEntry() : null);
+      
+      if (entry) {
+        entries.push(entry);
+      }
+    }
+  }
+  
+  // Process all entries (files and folders)
+  if (entries.length > 0) {
+    traverseFileTree(entries);
+  } else {
+    setStatus('No valid entries found', true);
+    showToast('No valid entries found', 'error');
+  }
+}
+
+// Traverse and process file tree
+function traverseFileTree(entries) {
+  // Array to collect all files
+  const allFiles = [];
+  let pendingDirectories = 0;
+  let processedFiles = 0;
+  
+  // Process entry (file or directory)
+  function processEntry(entry) {
+    if (entry.isFile) {
+      // Handle file entry
+      entry.file(file => {
+        allFiles.push(file);
+        processedFiles++;
+        checkCompletion();
+      }, error => {
+        console.error('Error getting file:', error);
+        processedFiles++;
+        checkCompletion();
+      });
+    } else if (entry.isDirectory) {
+      pendingDirectories++;
+      
+      // Get directory reader
+      const reader = entry.createReader();
+      readDirectory(reader);
+    }
+  }
+  
+  // Read directory contents
+  function readDirectory(reader) {
+    reader.readEntries(entries => {
+      if (entries.length > 0) {
+        // Process each entry
+        entries.forEach(processEntry);
+        
+        // Continue reading (directories might return partial results)
+        readDirectory(reader);
+      } else {
+        // No more entries in this directory
+        pendingDirectories--;
+        checkCompletion();
+      }
+    }, error => {
+      console.error('Error reading directory:', error);
+      pendingDirectories--;
+      checkCompletion();
+    });
+  }
+  
+  // Check if all processing is complete
+  function checkCompletion() {
+    if (pendingDirectories === 0 && entries.length === processedFiles) {
+      // All directories and files have been processed
+      setStatus(`Processing ${allFiles.length} collected files...`);
+      processVideoFiles(allFiles);
+    }
+  }
+  
+  // Start processing all entries
+  entries.forEach(processEntry);
+}
+
+// Handle dropped items (possibly containing folders) - Legacy version kept for reference
 async function handleDropItems(items) {
   const allFiles = [];
   
