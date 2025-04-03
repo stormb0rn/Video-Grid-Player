@@ -897,18 +897,11 @@ function createVideoElement(file, parentContainer) {
   if (file.fullPath) {
     const pathElement = document.createElement('div');
     pathElement.className = 'video-path';
-    // 显示父目录路径，不包括文件名
+    // 显示完整的父目录路径，不包括文件名
     const pathParts = file.fullPath.split('/');
     pathParts.pop(); // 移除文件名
-    
-    if (pathParts.length > 0) {
-      // 只显示最后一级文件夹名称
-      const lastFolderName = pathParts[pathParts.length - 1];
-      pathElement.textContent = lastFolderName || '/';
-    } else {
-      pathElement.textContent = '/';
-    }
-    
+    const directoryPath = pathParts.join('/') || '/';
+    pathElement.textContent = directoryPath;
     videoInfo.appendChild(pathElement);
   }
   
@@ -995,18 +988,11 @@ function createImageElement(file, parentContainer) {
   if (file.fullPath) {
     const pathElement = document.createElement('div');
     pathElement.className = 'video-path';
-    // 显示父目录路径，不包括文件名
+    // 显示完整的父目录路径，不包括文件名
     const pathParts = file.fullPath.split('/');
     pathParts.pop(); // 移除文件名
-    
-    if (pathParts.length > 0) {
-      // 只显示最后一级文件夹名称
-      const lastFolderName = pathParts[pathParts.length - 1];
-      pathElement.textContent = lastFolderName || '/';
-    } else {
-      pathElement.textContent = '/';
-    }
-    
+    const directoryPath = pathParts.join('/') || '/';
+    pathElement.textContent = directoryPath;
     imageInfo.appendChild(pathElement);
   }
   

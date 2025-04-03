@@ -248,6 +248,9 @@ video {
   overflow: hidden;
   text-overflow: ellipsis;
   margin-top: 2px;
+  max-width: 100%;
+  display: block;
+  padding: 1px 0;
 }
 
 .remove-video {
