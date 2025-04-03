@@ -636,4 +636,108 @@ video {
   margin-bottom: 8px;
   color: #374151;
   line-height: 1.5;
+}
+
+/* 文件夹过滤按钮 */
+.filter-folder-button {
+  background-color: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 0.7rem;
+  cursor: pointer;
+  margin-left: 8px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.folder-title:hover .filter-folder-button {
+  opacity: 1;
+}
+
+.filter-folder-button:hover {
+  background-color: #2563eb;
+}
+
+.dark-mode .filter-folder-button {
+  background-color: #4f46e5;
+}
+
+.dark-mode .filter-folder-button:hover {
+  background-color: #4338ca;
+}
+
+/* 过滤信息和恢复按钮样式 */
+.filter-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  margin-bottom: 20px;
+  background: rgba(30, 58, 138, 0.1);
+  border-radius: 8px;
+  border-left: 4px solid #3b82f6;
+  flex-wrap: wrap;
+}
+
+.filter-title {
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.filter-path {
+  font-family: monospace;
+  background: rgba(30, 30, 30, 0.5);
+  padding: 4px 8px;
+  border-radius: 4px;
+  color: rgba(255, 255, 255, 0.8);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 400px;
+}
+
+.reset-filter-button {
+  margin-left: auto;
+  background-color: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 4px 12px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.reset-filter-button:hover {
+  background-color: #2563eb;
+}
+
+.no-filter-results {
+  padding: 30px;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.6);
+  font-style: italic;
+  background: rgba(30, 30, 30, 0.2);
+  border-radius: 8px;
+  margin: 20px 0;
+}
+
+@media (max-width: 768px) {
+  .filter-info {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .reset-filter-button {
+    margin-left: 0;
+    margin-top: 8px;
+    align-self: flex-end;
+  }
+  
+  .filter-path {
+    max-width: 100%;
+    width: 100%;
+  }
 } 

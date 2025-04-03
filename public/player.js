@@ -508,10 +508,23 @@ function renderFileTree(rootNode) {
         }
       }
       
+      // 添加"仅看此文件夹"按钮
+      const filterButton = document.createElement('button');
+      filterButton.className = 'filter-folder-button';
+      filterButton.textContent = '仅看此文件夹';
+      filterButton.title = '仅显示此文件夹下的媒体文件';
+      
+      // 添加点击事件，过滤显示此文件夹的内容
+      filterButton.addEventListener('click', (e) => {
+        e.stopPropagation(); // 阻止事件冒泡，避免触发折叠/展开
+        filterVideosByFolder(node.path);
+      });
+      
       // 组装目录标题
       folderTitle.appendChild(expandIcon);
       folderTitle.appendChild(folderIcon);
       folderTitle.appendChild(folderName);
+      folderTitle.appendChild(filterButton);
       folderItem.appendChild(folderTitle);
       
       // 创建子项容器
@@ -1092,4 +1105,131 @@ function getParentDirectory(fullPath) {
   
   // 返回完整父目录路径
   return parts.join('/');
+}
+
+// 过滤显示此文件夹的内容
+function filterVideosByFolder(folderPath) {
+  // 保存当前过滤的路径以便于显示
+  const filterInfo = document.createElement('div');
+  filterInfo.className = 'filter-info';
+  
+  // 创建过滤器标题和路径信息
+  const filterTitle = document.createElement('div');
+  filterTitle.className = 'filter-title';
+  filterTitle.textContent = '当前过滤:';
+  
+  const filterPath = document.createElement('div');
+  filterPath.className = 'filter-path';
+  filterPath.textContent = folderPath;
+  
+  // 创建恢复全部按钮
+  const resetButton = document.createElement('button');
+  resetButton.className = 'reset-filter-button';
+  resetButton.textContent = '显示全部';
+  resetButton.addEventListener('click', resetFilter);
+  
+  // 组装过滤信息
+  filterInfo.appendChild(filterTitle);
+  filterInfo.appendChild(filterPath);
+  filterInfo.appendChild(resetButton);
+  
+  // 获取所有视频容器
+  const allContainers = Array.from(document.querySelectorAll('.video-container'));
+  
+  // 存储原始视频布局以便恢复
+  window.originalVideoLayout = videoGrid.innerHTML;
+  
+  // 过滤符合条件的视频容器
+  const filteredContainers = allContainers.filter(container => {
+    const containerPath = container.dataset.path;
+    return containerPath && containerPath.startsWith(folderPath);
+  });
+  
+  // 清空视频网格
+  videoGrid.innerHTML = '';
+  
+  // 添加过滤信息
+  videoGrid.appendChild(filterInfo);
+  
+  // 如果有匹配的容器，显示它们
+  if (filteredContainers.length > 0) {
+    // 将过滤后的视频容器添加到视频网格
+    filteredContainers.forEach(container => {
+      videoGrid.appendChild(container.cloneNode(true));
+    });
+    
+    // 显示成功消息
+    showToast(`已过滤: 显示 ${filteredContainers.length} 个媒体文件`, 'info');
+  } else {
+    // 如果没有匹配的容器，显示提示
+    const noResults = document.createElement('div');
+    noResults.className = 'no-filter-results';
+    noResults.textContent = `在路径 "${folderPath}" 下没有找到媒体文件`;
+    videoGrid.appendChild(noResults);
+    
+    // 显示警告消息
+    showToast(`在路径 "${folderPath}" 下没有找到媒体文件`, 'error');
+  }
+  
+  // 更新视频计数和下载按钮状态
+  updateVideoCount();
+  updateDownloadButtonState();
+}
+
+// 重置过滤器，显示所有文件
+function resetFilter() {
+  // 如果有存储的原始布局，恢复它
+  if (window.originalVideoLayout) {
+    videoGrid.innerHTML = window.originalVideoLayout;
+    
+    // 重新添加事件监听器
+    attachEventListenersToContainers();
+    
+    // 清除存储的布局
+    window.originalVideoLayout = null;
+    
+    // 显示成功消息
+    showToast('已显示全部媒体文件', 'success');
+    
+    // 更新视频计数和下载按钮状态
+    updateVideoCount();
+    updateDownloadButtonState();
+  }
+}
+
+// 为恢复的容器重新添加事件监听器
+function attachEventListenersToContainers() {
+  const containers = document.querySelectorAll('.video-container');
+  containers.forEach(container => {
+    const video = container.querySelector('video');
+    const removeButton = container.querySelector('.remove-video');
+    
+    if (video) {
+      // 添加鼠标事件
+      container.addEventListener('mouseenter', () => {
+        video.muted = false;
+      });
+      
+      container.addEventListener('mouseleave', () => {
+        video.muted = true;
+      });
+    }
+    
+    if (removeButton) {
+      // 添加删除按钮事件
+      removeButton.addEventListener('click', () => {
+        container.remove();
+        if (video) {
+          URL.revokeObjectURL(video.src);
+        } else {
+          const img = container.querySelector('img');
+          if (img) {
+            URL.revokeObjectURL(img.src);
+          }
+        }
+        updateVideoCount();
+        updateDownloadButtonState();
+      });
+    }
+  });
 }
