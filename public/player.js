@@ -51,6 +51,12 @@ const SUPPORTED_TYPES = {
 // 用于存储文件树结构
 let fileTreeStructure = null;
 
+// 全局变量，用于跟踪当前过滤状态
+let currentFilterPath = null;
+
+// 存储原始视频布局，用于在取消过滤时恢复
+window.originalVideoLayout = null;
+
 // Ensure DOM elements are loaded
 document.addEventListener('DOMContentLoaded', function() {
   setStatus('Page loaded, waiting for media files...');
@@ -1107,68 +1113,81 @@ function getParentDirectory(fullPath) {
   return parts.join('/');
 }
 
-// 过滤显示此文件夹的内容
+// 按文件夹过滤视频
 function filterVideosByFolder(folderPath) {
-  // 保存当前过滤的路径以便于显示
+  const videoGrid = document.getElementById('video-grid');
+  
+  // 切换过滤状态
+  if (currentFilterPath === folderPath) {
+    // 如果点击同一个文件夹，则取消过滤
+    resetFilter();
+    return;
+  }
+  
+  // 更新当前过滤路径
+  currentFilterPath = folderPath;
+  
+  // 仅在第一次过滤时保存原始布局
+  if (!window.originalVideoLayout) {
+    window.originalVideoLayout = videoGrid.cloneNode(true);
+  }
+  
+  // 创建过滤信息显示
   const filterInfo = document.createElement('div');
   filterInfo.className = 'filter-info';
+  filterInfo.innerHTML = `
+    <span class="filter-title">当前仅显示：</span>
+    <span class="filter-path">${folderPath}</span>
+    <button class="reset-filter-button">显示全部</button>
+  `;
   
-  // 创建过滤器标题和路径信息
-  const filterTitle = document.createElement('div');
-  filterTitle.className = 'filter-title';
-  filterTitle.textContent = '当前过滤:';
-  
-  const filterPath = document.createElement('div');
-  filterPath.className = 'filter-path';
-  filterPath.textContent = folderPath;
-  
-  // 创建恢复全部按钮
-  const resetButton = document.createElement('button');
-  resetButton.className = 'reset-filter-button';
-  resetButton.textContent = '显示全部';
+  const resetButton = filterInfo.querySelector('.reset-filter-button');
   resetButton.addEventListener('click', resetFilter);
   
-  // 组装过滤信息
-  filterInfo.appendChild(filterTitle);
-  filterInfo.appendChild(filterPath);
-  filterInfo.appendChild(resetButton);
+  // 先清除现有的过滤信息
+  const existingFilterInfo = document.querySelector('.filter-info');
+  if (existingFilterInfo) {
+    existingFilterInfo.remove();
+  }
+  
+  // 添加过滤信息到容器上方
+  const videoContainer = document.getElementById('video-container');
+  videoContainer.insertBefore(filterInfo, videoGrid);
   
   // 获取所有视频容器
-  const allContainers = Array.from(document.querySelectorAll('.video-container'));
+  let allContainers = [];
   
-  // 存储原始视频布局以便恢复
-  window.originalVideoLayout = videoGrid.innerHTML;
+  // 如果原始布局已保存，从原始布局中获取容器
+  if (window.originalVideoLayout) {
+    allContainers = Array.from(window.originalVideoLayout.querySelectorAll('.video-container, .image-container'));
+  } else {
+    // 否则从当前DOM中获取容器
+    allContainers = Array.from(videoGrid.querySelectorAll('.video-container, .image-container'));
+  }
   
-  // 过滤符合条件的视频容器
+  // 过滤符合条件的容器
   const filteredContainers = allContainers.filter(container => {
-    const containerPath = container.dataset.path;
-    return containerPath && containerPath.startsWith(folderPath);
+    const path = container.dataset.path || '';
+    return path.startsWith(folderPath);
   });
   
-  // 清空视频网格
+  // 清空当前网格
   videoGrid.innerHTML = '';
   
-  // 添加过滤信息
-  videoGrid.appendChild(filterInfo);
-  
-  // 如果有匹配的容器，显示它们
-  if (filteredContainers.length > 0) {
-    // 将过滤后的视频容器添加到视频网格
-    filteredContainers.forEach(container => {
-      videoGrid.appendChild(container.cloneNode(true));
-    });
-    
-    // 显示成功消息
-    showToast(`已过滤: 显示 ${filteredContainers.length} 个媒体文件`, 'info');
-  } else {
-    // 如果没有匹配的容器，显示提示
+  if (filteredContainers.length === 0) {
+    // 显示无结果提示
     const noResults = document.createElement('div');
     noResults.className = 'no-filter-results';
-    noResults.textContent = `在路径 "${folderPath}" 下没有找到媒体文件`;
+    noResults.textContent = `在路径 "${folderPath}" 中未找到媒体文件`;
     videoGrid.appendChild(noResults);
-    
-    // 显示警告消息
-    showToast(`在路径 "${folderPath}" 下没有找到媒体文件`, 'error');
+  } else {
+    // 为每个过滤后的容器添加事件监听器并添加到网格
+    filteredContainers.forEach(container => {
+      // 创建深拷贝以避免修改原始元素
+      const clonedContainer = container.cloneNode(true);
+      const newContainer = attachEventListenersToContainer(clonedContainer);
+      videoGrid.appendChild(newContainer);
+    });
   }
   
   // 更新视频计数和下载按钮状态
@@ -1176,25 +1195,36 @@ function filterVideosByFolder(folderPath) {
   updateDownloadButtonState();
 }
 
-// 重置过滤器，显示所有文件
+// 重置过滤器，显示所有视频
 function resetFilter() {
-  // 如果有存储的原始布局，恢复它
-  if (window.originalVideoLayout) {
-    videoGrid.innerHTML = window.originalVideoLayout;
-    
-    // 重新添加事件监听器
-    attachEventListenersToContainers();
-    
-    // 清除存储的布局
-    window.originalVideoLayout = null;
-    
-    // 显示成功消息
-    showToast('已显示全部媒体文件', 'success');
-    
-    // 更新视频计数和下载按钮状态
-    updateVideoCount();
-    updateDownloadButtonState();
+  if (!window.originalVideoLayout) return;
+  
+  // 移除过滤信息
+  const filterInfo = document.querySelector('.filter-info');
+  if (filterInfo) {
+    filterInfo.remove();
   }
+  
+  // 恢复原始布局
+  const videoGrid = document.getElementById('video-grid');
+  videoGrid.innerHTML = '';
+  
+  // 获取原始布局中的所有容器
+  const originalContainers = Array.from(window.originalVideoLayout.querySelectorAll('.video-container, .image-container'));
+  
+  // 为每个容器添加事件监听器并添加到网格
+  originalContainers.forEach(container => {
+    const clonedContainer = container.cloneNode(true);
+    const newContainer = attachEventListenersToContainer(clonedContainer);
+    videoGrid.appendChild(newContainer);
+  });
+  
+  // 重置过滤状态
+  currentFilterPath = null;
+  
+  // 更新视频计数和下载按钮状态
+  updateVideoCount();
+  updateDownloadButtonState();
 }
 
 // 为恢复的容器重新添加事件监听器
@@ -1232,4 +1262,40 @@ function attachEventListenersToContainers() {
       });
     }
   });
+}
+
+// 附加事件监听器到单个容器
+function attachEventListenersToContainer(container) {
+  const video = container.querySelector('video');
+  const removeButton = container.querySelector('.remove-video');
+  
+  if (video) {
+    // 重新添加鼠标事件
+    container.addEventListener('mouseenter', () => {
+      video.muted = false;
+    });
+    
+    container.addEventListener('mouseleave', () => {
+      video.muted = true;
+    });
+  }
+  
+  if (removeButton) {
+    // 重新添加删除按钮事件
+    removeButton.addEventListener('click', () => {
+      container.remove();
+      if (video) {
+        URL.revokeObjectURL(video.src);
+      } else {
+        const img = container.querySelector('img');
+        if (img) {
+          URL.revokeObjectURL(img.src);
+        }
+      }
+      updateVideoCount();
+      updateDownloadButtonState();
+    });
+  }
+  
+  return container;
 }
