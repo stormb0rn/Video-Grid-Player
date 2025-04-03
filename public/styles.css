@@ -128,6 +128,45 @@ h1 {
   padding: 20px 0;
 }
 
+/* 文件夹分组样式 */
+.folder-group {
+  grid-column: 1 / -1;
+  margin: 10px 0;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.folder-group-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 15px;
+  padding: 8px 12px;
+  background: rgba(30, 30, 30, 0.7);
+  border-radius: 6px;
+}
+
+.folder-group-name {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.85);
+  margin-left: 8px;
+}
+
+.folder-group-items {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
+  width: 100%;
+}
+
+.dark-mode .folder-group {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.dark-mode .folder-group-header {
+  background: rgba(25, 25, 25, 0.9);
+}
+
 .video-container {
   width: 100%;
   background: #1F1F1F;
@@ -402,8 +441,6 @@ video {
 /* 路径标签样式 */
 .path-tag {
   font-size: 12px;
-  background-color: #f3f4f6;
-  color: #4b5563;
   padding: 2px 8px;
   border-radius: 4px;
   margin-bottom: 6px;
@@ -412,8 +449,34 @@ video {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-weight: 500;
 }
 
+/* 文件夹彩色标识 - 使用不同颜色但保持区分度高且不过度饱和 */
+.path-tag[data-folder-level="1"] { background-color: #e9e2f5; color: #4a3b70; }
+.path-tag[data-folder-level="2"] { background-color: #e2f5e9; color: #3b704a; }
+.path-tag[data-folder-level="3"] { background-color: #f5e9e2; color: #704a3b; }
+.path-tag[data-folder-level="4"] { background-color: #e2e9f5; color: #3b4a70; }
+.path-tag[data-folder-level="5"] { background-color: #f5e2e9; color: #703b4a; }
+.path-tag[data-folder-level="6"] { background-color: #e9f5e2; color: #4a703b; }
+.path-tag[data-folder-level="7"] { background-color: #e2f0f5; color: #3b6170; }
+.path-tag[data-folder-level="8"] { background-color: #f0e2f5; color: #613b70; }
+.path-tag[data-folder-level="9"] { background-color: #f5f0e2; color: #706b3b; }
+.path-tag[data-folder-level="0"] { background-color: #f5e2f0; color: #703b61; }
+
+/* 暗黑模式下的文件夹颜色标识 */
+.dark-mode .path-tag[data-folder-level="1"] { background-color: #372f48; color: #c4b5e0; }
+.dark-mode .path-tag[data-folder-level="2"] { background-color: #2f4837; color: #b5e0c4; }
+.dark-mode .path-tag[data-folder-level="3"] { background-color: #483730; color: #e0c4b5; }
+.dark-mode .path-tag[data-folder-level="4"] { background-color: #303748; color: #b5c4e0; }
+.dark-mode .path-tag[data-folder-level="5"] { background-color: #483037; color: #e0b5c4; }
+.dark-mode .path-tag[data-folder-level="6"] { background-color: #374830; color: #c4e0b5; }
+.dark-mode .path-tag[data-folder-level="7"] { background-color: #304148; color: #b5d6e0; }
+.dark-mode .path-tag[data-folder-level="8"] { background-color: #413048; color: #d6b5e0; }
+.dark-mode .path-tag[data-folder-level="9"] { background-color: #484130; color: #e0d6b5; }
+.dark-mode .path-tag[data-folder-level="0"] { background-color: #483041; color: #e0b5d6; }
+
+/* 一般暗黑模式下的默认样式 */
 .dark-mode .path-tag {
   background-color: #374151;
   color: #d1d5db;

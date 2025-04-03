@@ -215,7 +215,21 @@ function handleFolderSelect() {
 }
 
 function updateVideoCount() {
-  const count = videoGrid.children.length;
+  // 统计所有媒体容器的数量，包括在文件夹组内的媒体
+  let count = 0;
+  
+  // 首先统计直接在视频网格中的媒体容器
+  const directContainers = videoGrid.querySelectorAll(':scope > .video-container').length;
+  count += directContainers;
+  
+  // 然后统计在文件夹组内的媒体容器
+  const folderGroups = videoGrid.querySelectorAll('.folder-group');
+  folderGroups.forEach(group => {
+    const groupContainers = group.querySelectorAll('.video-container').length;
+    count += groupContainers;
+  });
+  
+  // 更新计数显示
   currentCount.textContent = count;
 }
 
@@ -473,6 +487,30 @@ function renderFileTree(rootNode) {
       folderName.className = 'folder-name';
       folderName.textContent = node.name;
       
+      // 为文件夹添加颜色标识
+      if (node.path && node.path !== '') {
+        const folderLevel = calculateFolderLevel(node.path);
+        folderName.setAttribute('data-folder-level', folderLevel.toString());
+        folderName.style.padding = '1px 6px';
+        folderName.style.borderRadius = '3px';
+        folderName.style.marginLeft = '4px';
+        
+        // 根据计算的级别设置背景色和文字颜色
+        if (document.body.classList.contains('dark-mode')) {
+          // 暗黑模式颜色
+          const bgColors = ['#483041', '#372f48', '#2f4837', '#483730', '#303748', '#483037', '#374830', '#304148', '#413048', '#484130'];
+          const textColors = ['#e0b5d6', '#c4b5e0', '#b5e0c4', '#e0c4b5', '#b5c4e0', '#e0b5c4', '#c4e0b5', '#b5d6e0', '#d6b5e0', '#e0d6b5'];
+          folderName.style.backgroundColor = bgColors[folderLevel];
+          folderName.style.color = textColors[folderLevel];
+        } else {
+          // 浅色模式颜色
+          const bgColors = ['#f5e2f0', '#e9e2f5', '#e2f5e9', '#f5e9e2', '#e2e9f5', '#f5e2e9', '#e9f5e2', '#e2f0f5', '#f0e2f5', '#f5f0e2'];
+          const textColors = ['#703b61', '#4a3b70', '#3b704a', '#704a3b', '#3b4a70', '#703b4a', '#4a703b', '#3b6170', '#613b70', '#706b3b'];
+          folderName.style.backgroundColor = bgColors[folderLevel];
+          folderName.style.color = textColors[folderLevel];
+        }
+      }
+      
       // 组装目录标题
       folderTitle.appendChild(expandIcon);
       folderTitle.appendChild(folderIcon);
@@ -538,9 +576,22 @@ function renderFileTree(rootNode) {
 function scrollToMediaFile(path) {
   if (!path) return;
   
-  // 查找具有匹配路径的视频容器
-  const containers = Array.from(videoGrid.querySelectorAll('.video-container'));
-  const targetContainer = containers.find(container => container.dataset.path === path);
+  // 查找具有匹配路径的视频容器（包括在文件夹组内的）
+  let targetContainer = null;
+  
+  // 首先检查直接在视频网格中的容器
+  const directContainers = Array.from(videoGrid.querySelectorAll(':scope > .video-container'));
+  targetContainer = directContainers.find(container => container.dataset.path === path);
+  
+  // 如果没有找到，检查文件夹组内的容器
+  if (!targetContainer) {
+    const folderGroups = videoGrid.querySelectorAll('.folder-group');
+    for (let i = 0; i < folderGroups.length; i++) {
+      const groupContainers = Array.from(folderGroups[i].querySelectorAll('.video-container'));
+      targetContainer = groupContainers.find(container => container.dataset.path === path);
+      if (targetContainer) break;
+    }
+  }
   
   if (targetContainer) {
     // 滚动到目标容器
@@ -556,6 +607,9 @@ function scrollToMediaFile(path) {
 
 // Process video files
 function processVideoFiles(files) {
+  // 清空现有的视频网格
+  videoGrid.innerHTML = '';
+  
   // Filter video and image files
   const mediaFiles = files.filter(file => {
     return SUPPORTED_TYPES.video.some(type => file.type.startsWith(type)) || 
@@ -563,8 +617,7 @@ function processVideoFiles(files) {
   });
   
   // Calculate how many more media files we can add
-  const currentCount = videoGrid.children.length;
-  const remainingSlots = MAX_VIDEOS - currentCount;
+  const remainingSlots = MAX_VIDEOS;
   
   if (remainingSlots <= 0) {
     showToast('Maximum file limit reached', 'error');
@@ -575,15 +628,102 @@ function processVideoFiles(files) {
   const filesToProcess = mediaFiles.slice(0, remainingSlots);
   
   if (filesToProcess.length > 0) {
+    // 按文件夹路径进行分组
+    const filesByFolder = {};
+    
     filesToProcess.forEach(file => {
-      if (SUPPORTED_TYPES.video.some(type => file.type.startsWith(type))) {
-        createVideoElement(file);
-      } else if (SUPPORTED_TYPES.image.some(type => file.type === type)) {
-        createImageElement(file);
+      let folderPath = '';
+      if (file.fullPath) {
+        // 获取文件所在的文件夹路径
+        folderPath = getFolderPath(file.fullPath);
       }
+      
+      // 如果该文件夹路径不存在于分组中，创建一个新数组
+      if (!filesByFolder[folderPath]) {
+        filesByFolder[folderPath] = [];
+      }
+      
+      // 将文件添加到对应的文件夹分组
+      filesByFolder[folderPath].push(file);
     });
     
-    // Show success message for multi-file addition
+    // 按文件夹路径排序
+    const sortedFolders = Object.keys(filesByFolder).sort();
+    
+    // 为每个文件夹创建一个组并添加其中的文件
+    sortedFolders.forEach(folderPath => {
+      const folderFiles = filesByFolder[folderPath];
+      
+      // 创建文件夹分组容器
+      const folderGroup = document.createElement('div');
+      folderGroup.className = 'folder-group';
+      
+      // 创建文件夹标题
+      const folderHeader = document.createElement('div');
+      folderHeader.className = 'folder-group-header';
+      
+      // 创建文件夹图标
+      const folderIcon = document.createElement('span');
+      folderIcon.textContent = '📁';
+      
+      // 创建文件夹名称
+      const folderName = document.createElement('span');
+      folderName.className = 'folder-group-name';
+      
+      // 显示文件夹路径名称（如果有）
+      if (folderPath && folderPath !== '/') {
+        folderName.textContent = folderPath.startsWith('/') ? folderPath.substring(1) : folderPath;
+        
+        // 添加颜色标识
+        const folderLevel = calculateFolderLevel(folderPath);
+        folderName.setAttribute('data-folder-level', folderLevel.toString());
+        
+        // 应用颜色样式
+        if (document.body.classList.contains('dark-mode')) {
+          // 暗黑模式颜色
+          const bgColors = ['#483041', '#372f48', '#2f4837', '#483730', '#303748', '#483037', '#374830', '#304148', '#413048', '#484130'];
+          const textColors = ['#e0b5d6', '#c4b5e0', '#b5e0c4', '#e0c4b5', '#b5c4e0', '#e0b5c4', '#c4e0b5', '#b5d6e0', '#d6b5e0', '#e0d6b5'];
+          folderName.style.backgroundColor = bgColors[folderLevel];
+          folderName.style.color = textColors[folderLevel];
+          folderName.style.padding = '2px 8px';
+          folderName.style.borderRadius = '4px';
+        } else {
+          // 浅色模式颜色
+          const bgColors = ['#f5e2f0', '#e9e2f5', '#e2f5e9', '#f5e9e2', '#e2e9f5', '#f5e2e9', '#e9f5e2', '#e2f0f5', '#f0e2f5', '#f5f0e2'];
+          const textColors = ['#703b61', '#4a3b70', '#3b704a', '#704a3b', '#3b4a70', '#703b4a', '#4a703b', '#3b6170', '#613b70', '#706b3b'];
+          folderName.style.backgroundColor = bgColors[folderLevel];
+          folderName.style.color = textColors[folderLevel];
+          folderName.style.padding = '2px 8px';
+          folderName.style.borderRadius = '4px';
+        }
+      } else {
+        folderName.textContent = '根目录';
+      }
+      
+      // 组装文件夹标题
+      folderHeader.appendChild(folderIcon);
+      folderHeader.appendChild(folderName);
+      folderGroup.appendChild(folderHeader);
+      
+      // 创建文件夹内容容器
+      const folderItems = document.createElement('div');
+      folderItems.className = 'folder-group-items';
+      folderGroup.appendChild(folderItems);
+      
+      // 将文件添加到对应的文件夹组
+      folderFiles.forEach(file => {
+        if (SUPPORTED_TYPES.video.some(type => file.type.startsWith(type))) {
+          createVideoElement(file, folderItems);
+        } else if (SUPPORTED_TYPES.image.some(type => file.type === type)) {
+          createImageElement(file, folderItems);
+        }
+      });
+      
+      // 将文件夹组添加到视频网格中
+      videoGrid.appendChild(folderGroup);
+    });
+    
+    // 显示成功消息
     if (filesToProcess.length > 1) {
       showToast(`Successfully added ${filesToProcess.length} media files`, 'success');
     } else if (filesToProcess.length === 1) {
@@ -593,9 +733,16 @@ function processVideoFiles(files) {
     // Message if files but no supported media
     showToast('No videos or images found', 'error');
   }
+  
+  // 更新视频计数和下载按钮状态
+  updateVideoCount();
+  updateDownloadButtonState();
 }
 
-function createVideoElement(file) {
+function createVideoElement(file, parentContainer) {
+  // 使用传入的父容器或默认的videoGrid
+  const container = parentContainer || videoGrid;
+  
   const videoContainer = document.createElement('div');
   videoContainer.className = 'video-container';
   
@@ -647,6 +794,10 @@ function createVideoElement(file) {
       // 简化路径显示，将根目录和多层路径处理成更友好的格式
       const displayPath = formatDisplayPath(folderPath);
       
+      // 添加文件夹级别属性以应用颜色
+      const folderLevel = calculateFolderLevel(folderPath);
+      pathTag.setAttribute('data-folder-level', folderLevel.toString());
+      
       pathTag.textContent = displayPath;
       videoInfo.appendChild(pathTag);
     }
@@ -674,7 +825,7 @@ function createVideoElement(file) {
   }
   
   videoContainer.appendChild(videoInfo);
-  videoGrid.appendChild(videoContainer);
+  container.appendChild(videoContainer);
   
   updateVideoCount();
   updateDownloadButtonState();
@@ -691,7 +842,10 @@ function createVideoElement(file) {
   });
 }
 
-function createImageElement(file) {
+function createImageElement(file, parentContainer) {
+  // 使用传入的父容器或默认的videoGrid
+  const container = parentContainer || videoGrid;
+  
   const imageContainer = document.createElement('div');
   imageContainer.className = 'video-container';
   
@@ -731,6 +885,10 @@ function createImageElement(file) {
       // 简化路径显示，将根目录和多层路径处理成更友好的格式
       const displayPath = formatDisplayPath(folderPath);
       
+      // 添加文件夹级别属性以应用颜色
+      const folderLevel = calculateFolderLevel(folderPath);
+      pathTag.setAttribute('data-folder-level', folderLevel.toString());
+      
       pathTag.textContent = displayPath;
       imageInfo.appendChild(pathTag);
     }
@@ -758,7 +916,7 @@ function createImageElement(file) {
   }
   
   imageContainer.appendChild(imageInfo);
-  videoGrid.appendChild(imageContainer);
+  container.appendChild(imageContainer);
   
   updateVideoCount();
   updateDownloadButtonState();
@@ -770,7 +928,16 @@ downloadAllButton.addEventListener('click', handleDownloadAll);
 updateDownloadButtonState();
 
 function updateDownloadButtonState() {
-  const hasVideos = videoGrid.children.length > 0;
+  // 检查是否有任何媒体文件（包括在文件夹组内的）
+  const directContainers = videoGrid.querySelectorAll(':scope > .video-container').length;
+  let folderGroupsContainers = 0;
+  
+  const folderGroups = videoGrid.querySelectorAll('.folder-group');
+  folderGroups.forEach(group => {
+    folderGroupsContainers += group.querySelectorAll('.video-container').length;
+  });
+  
+  const hasVideos = directContainers > 0 || folderGroupsContainers > 0;
   downloadAllButton.disabled = !hasVideos;
 }
 
@@ -899,4 +1066,23 @@ function formatDisplayPath(path) {
   
   // 路径不长时直接显示
   return `📂 ${cleanPath}`;
+}
+
+// 计算文件夹级别以应用不同颜色
+function calculateFolderLevel(path) {
+  if (!path || path === '/') return 0;
+  
+  // 处理路径中的哈希值
+  const cleanPath = path.startsWith('/') ? path.substring(1) : path;
+  const parts = cleanPath.split('/');
+  
+  // 使用路径的哈希值计算0-9之间的数字，确保同一路径始终得到相同的颜色
+  let hash = 0;
+  for (let i = 0; i < cleanPath.length; i++) {
+    hash = ((hash << 5) - hash) + cleanPath.charCodeAt(i);
+    hash |= 0; // 转换为32位整数
+  }
+  
+  // 取绝对值并对10取模，得到0-9之间的数字
+  return Math.abs(hash % 10);
 }
