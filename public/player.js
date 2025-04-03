@@ -1,5 +1,5 @@
 const dropZone = document.getElementById('dropZone');
-const videoGrid = document.getElementById('videoGrid');
+let videoGrid; // 将在DOMContentLoaded中获取
 const currentCount = document.getElementById('currentCount');
 const MAX_VIDEOS = 1000;
 const downloadAllButton = document.getElementById('downloadAll');
@@ -61,13 +61,34 @@ window.originalVideoLayout = null;
 document.addEventListener('DOMContentLoaded', function() {
   setStatus('Page loaded, waiting for media files...');
 
-  // Ensure we have all required elements
+  // 初始化获取videoGrid元素
+  videoGrid = document.getElementById('videoGrid');
+  
+  // 检查是否找到videoGrid元素，如果没有，尝试使用备用ID
+  if (!videoGrid) {
+    console.warn('未找到ID为videoGrid的元素，尝试使用video-grid获取');
+    videoGrid = document.querySelector('.video-grid');
+    
+    if (!videoGrid) {
+      console.error('无法找到视频网格元素，应用可能无法正常工作');
+      // 为了防止程序崩溃，创建一个新的videoGrid元素
+      videoGrid = document.createElement('div');
+      videoGrid.id = 'videoGrid';
+      videoGrid.className = 'video-grid';
+      document.body.appendChild(videoGrid);
+      console.log('已创建新的视频网格元素作为备用');
+    } else {
+      console.log('找到视频网格元素:', videoGrid);
+    }
+  }
+
+  // 确保我们有所有必需的元素
   if (!dropZone) {
     console.error('Drop zone element not found');
     return;
   }
 
-  // Set up drag and drop events
+  // 设置拖放事件
   initDragAndDrop();
 });
 
@@ -420,11 +441,14 @@ function buildFileTreeAndTraverse(entries) {
       // 所有目录和文件都已处理完毕
       setStatus(`处理 ${allFiles.length} 个媒体文件...`);
       
+      // 排序每个文件夹中的子项目（按名称A-Z排序）
+      sortFileTree(fileTreeStructure);
+      
       // 渲染文件树结构
       renderFileTree(fileTreeStructure);
       
-      // 处理所有收集到的媒体文件
-      processVideoFiles(allFiles);
+      // 处理所有收集到的媒体文件（已按名称排序）
+      processVideoFiles(allFiles.sort((a, b) => a.name.localeCompare(b.name)));
     }
   }
   
@@ -523,7 +547,19 @@ function renderFileTree(rootNode) {
       // 添加点击事件，过滤显示此文件夹的内容
       filterButton.addEventListener('click', (e) => {
         e.stopPropagation(); // 阻止事件冒泡，避免触发折叠/展开
-        filterVideosByFolder(node.path);
+        console.log('点击了"仅看此文件夹"按钮，路径:', node.path);
+        // 确保node.path存在且非空
+        if (node.path) {
+          try {
+            filterVideosByFolder(node.path);
+          } catch (error) {
+            console.error('过滤文件夹时发生错误:', error);
+            showToast('过滤文件夹时出错: ' + error.message, 'error');
+          }
+        } else {
+          console.warn('文件夹路径为空，无法过滤');
+          showToast('无法过滤: 文件夹路径为空', 'warning');
+        }
       });
       
       // 组装目录标题
@@ -726,8 +762,8 @@ function processVideoFiles(files) {
       const filesGrid = document.createElement('div');
       filesGrid.className = 'files-grid';
       
-      // 将该路径下的文件添加到格子容器
-      filesInPath.forEach(file => {
+      // 将该路径下的文件按照名称排序后添加到格子容器
+      filesInPath.sort((a, b) => a.name.localeCompare(b.name)).forEach(file => {
         if (SUPPORTED_TYPES.video.some(type => file.type.startsWith(type))) {
           createVideoElement(file, filesGrid);
         } else if (SUPPORTED_TYPES.image.some(type => file.type === type)) {
@@ -1115,7 +1151,14 @@ function getParentDirectory(fullPath) {
 
 // 按文件夹过滤视频
 function filterVideosByFolder(folderPath) {
-  const videoGrid = document.getElementById('video-grid');
+  console.log('正在过滤文件夹:', folderPath);
+  
+  // 不使用局部变量，使用全局videoGrid变量
+  if (!videoGrid) {
+    console.error('视频网格元素未找到');
+    showToast('无法找到视频网格元素', 'error');
+    return;
+  }
   
   // 切换过滤状态
   if (currentFilterPath === folderPath) {
@@ -1130,6 +1173,7 @@ function filterVideosByFolder(folderPath) {
   // 仅在第一次过滤时保存原始布局
   if (!window.originalVideoLayout) {
     window.originalVideoLayout = videoGrid.cloneNode(true);
+    console.log('已保存原始视频布局');
   }
   
   // 创建过滤信息显示
@@ -1150,9 +1194,8 @@ function filterVideosByFolder(folderPath) {
     existingFilterInfo.remove();
   }
   
-  // 添加过滤信息到容器上方
-  const videoContainer = document.getElementById('video-container');
-  videoContainer.insertBefore(filterInfo, videoGrid);
+  // 将过滤信息添加到视频网格前面
+  videoGrid.parentNode.insertBefore(filterInfo, videoGrid);
   
   // 获取所有视频容器
   let allContainers = [];
@@ -1160,16 +1203,24 @@ function filterVideosByFolder(folderPath) {
   // 如果原始布局已保存，从原始布局中获取容器
   if (window.originalVideoLayout) {
     allContainers = Array.from(window.originalVideoLayout.querySelectorAll('.video-container, .image-container'));
+    console.log(`从原始布局中找到 ${allContainers.length} 个媒体容器`);
   } else {
     // 否则从当前DOM中获取容器
     allContainers = Array.from(videoGrid.querySelectorAll('.video-container, .image-container'));
+    console.log(`从当前DOM中找到 ${allContainers.length} 个媒体容器`);
   }
   
   // 过滤符合条件的容器
   const filteredContainers = allContainers.filter(container => {
     const path = container.dataset.path || '';
-    return path.startsWith(folderPath);
+    const match = path.startsWith(folderPath);
+    if (match) {
+      console.log(`匹配路径: ${path}`);
+    }
+    return match;
   });
+  
+  console.log(`过滤后符合条件的容器数量: ${filteredContainers.length}`);
   
   // 清空当前网格
   videoGrid.innerHTML = '';
@@ -1180,6 +1231,7 @@ function filterVideosByFolder(folderPath) {
     noResults.className = 'no-filter-results';
     noResults.textContent = `在路径 "${folderPath}" 中未找到媒体文件`;
     videoGrid.appendChild(noResults);
+    showToast(`在路径 "${folderPath}" 中未找到媒体文件`, 'info');
   } else {
     // 为每个过滤后的容器添加事件监听器并添加到网格
     filteredContainers.forEach(container => {
@@ -1188,6 +1240,7 @@ function filterVideosByFolder(folderPath) {
       const newContainer = attachEventListenersToContainer(clonedContainer);
       videoGrid.appendChild(newContainer);
     });
+    showToast(`已过滤: 显示 ${filteredContainers.length} 个媒体文件`, 'success');
   }
   
   // 更新视频计数和下载按钮状态
@@ -1197,7 +1250,12 @@ function filterVideosByFolder(folderPath) {
 
 // 重置过滤器，显示所有视频
 function resetFilter() {
-  if (!window.originalVideoLayout) return;
+  console.log('正在重置过滤器...');
+  
+  if (!window.originalVideoLayout) {
+    console.warn('没有保存的原始布局，无法重置');
+    return;
+  }
   
   // 移除过滤信息
   const filterInfo = document.querySelector('.filter-info');
@@ -1205,12 +1263,20 @@ function resetFilter() {
     filterInfo.remove();
   }
   
-  // 恢复原始布局
-  const videoGrid = document.getElementById('video-grid');
+  // 使用全局videoGrid变量
+  if (!videoGrid) {
+    console.error('视频网格元素未找到');
+    return;
+  }
+  
+  console.log('正在恢复原始视频布局...');
+  
+  // 清空当前网格
   videoGrid.innerHTML = '';
   
   // 获取原始布局中的所有容器
   const originalContainers = Array.from(window.originalVideoLayout.querySelectorAll('.video-container, .image-container'));
+  console.log(`从原始布局中检索到 ${originalContainers.length} 个容器`);
   
   // 为每个容器添加事件监听器并添加到网格
   originalContainers.forEach(container => {
@@ -1225,6 +1291,9 @@ function resetFilter() {
   // 更新视频计数和下载按钮状态
   updateVideoCount();
   updateDownloadButtonState();
+  
+  showToast('已显示全部媒体文件', 'success');
+  console.log('过滤器已重置');
 }
 
 // 为恢复的容器重新添加事件监听器
@@ -1298,4 +1367,30 @@ function attachEventListenersToContainer(container) {
   }
   
   return container;
+}
+
+// 递归排序文件树中的每个文件夹内容
+function sortFileTree(node) {
+  if (node.children && node.children.length > 0) {
+    // 先递归排序所有子文件夹
+    node.children.forEach(child => {
+      if (child.type === 'directory') {
+        sortFileTree(child);
+      }
+    });
+    
+    // 然后对当前节点的子项按名称排序
+    // 目录排在前面，文件排在后面，各自内部按名称字母顺序排列
+    node.children.sort((a, b) => {
+      // 如果类型不同，目录排在文件前面
+      if (a.type !== b.type) {
+        return a.type === 'directory' ? -1 : 1;
+      }
+      
+      // 类型相同，按名称排序（不区分大小写）
+      return a.name.localeCompare(b.name, undefined, {sensitivity: 'base'});
+    });
+  }
+  
+  return node;
 }
