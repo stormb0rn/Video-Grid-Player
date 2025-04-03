@@ -675,95 +675,124 @@ function processVideoFiles(files) {
   const filesToProcess = mediaFiles.slice(0, remainingSlots);
   
   if (filesToProcess.length > 0) {
-    // 获取所有文件的最具体路径（最子目录）
-    const filesByDetailedPath = {};
+    // 检查文件是否具有目录结构
+    const hasDirectoryStructure = filesToProcess.some(file => file.fullPath && file.fullPath.includes('/'));
     
-    filesToProcess.forEach(file => {
-      let fullPath = '/';
-      if (file.fullPath) {
-        fullPath = file.fullPath;
-        
-        // 获取最具体的子目录路径
-        const parentDir = getParentDirectory(fullPath);
-        
-        // 如果该路径不存在于分组中，创建一个新数组
-        if (!filesByDetailedPath[parentDir]) {
-          filesByDetailedPath[parentDir] = [];
-        }
-        
-        // 将文件添加到对应的路径分组
-        filesByDetailedPath[parentDir].push(file);
-      } else {
-        // 根目录
-        if (!filesByDetailedPath['/']) {
-          filesByDetailedPath['/'] = [];
-        }
-        filesByDetailedPath['/'].push(file);
-      }
-    });
-    
-    // 按文件夹路径排序
-    const sortedPaths = Object.keys(filesByDetailedPath).sort();
-    
-    // 创建一个统一的容器
-    const allFilesContainer = document.createElement('div');
-    allFilesContainer.className = 'all-files-container';
-    
-    // 为每个最子目录路径创建一个行
-    sortedPaths.forEach(detailedPath => {
-      const filesInPath = filesByDetailedPath[detailedPath];
+    if (hasDirectoryStructure) {
+      // 文件夹结构处理逻辑 - 按文件夹分组显示
+      // 获取所有文件的最具体路径（最子目录）
+      const filesByDetailedPath = {};
       
-      // 创建行容器
-      const rowContainer = document.createElement('div');
-      rowContainer.className = 'folder-row';
-      
-      // 如果有路径（不是根路径），显示路径标签
-      if (detailedPath && detailedPath !== '/') {
-        // 创建路径标签容器
-        const pathLabelContainer = document.createElement('div');
-        pathLabelContainer.className = 'path-label-container';
-        
-        // 分割路径以显示各级文件夹
-        const pathParts = detailedPath.split('/').filter(part => part.trim() !== '');
-        const lastPart = pathParts[pathParts.length - 1];
-        
-        // 显示最后一级文件夹名称
-        const pathLabel = document.createElement('div');
-        pathLabel.className = 'path-label';
-        
-        // 添加颜色标识
-        const folderLevel = calculateFolderLevel(detailedPath);
-        pathLabel.setAttribute('data-folder-level', folderLevel.toString());
-        
-        // 设置路径标签文本
-        if (lastPart) {
-          pathLabel.textContent = `📁 ${lastPart}`;
+      filesToProcess.forEach(file => {
+        let fullPath = '/';
+        if (file.fullPath) {
+          fullPath = file.fullPath;
+          
+          // 获取最具体的子目录路径
+          const parentDir = getParentDirectory(fullPath);
+          
+          // 如果该路径不存在于分组中，创建一个新数组
+          if (!filesByDetailedPath[parentDir]) {
+            filesByDetailedPath[parentDir] = [];
+          }
+          
+          // 将文件添加到对应的路径分组
+          filesByDetailedPath[parentDir].push(file);
         } else {
-          pathLabel.textContent = '📁 根目录';
+          // 根目录
+          if (!filesByDetailedPath['/']) {
+            filesByDetailedPath['/'] = [];
+          }
+          filesByDetailedPath['/'].push(file);
+        }
+      });
+      
+      // 按文件夹路径排序
+      const sortedPaths = Object.keys(filesByDetailedPath).sort();
+      
+      // 创建一个统一的容器
+      const allFilesContainer = document.createElement('div');
+      allFilesContainer.className = 'all-files-container';
+      
+      // 为每个最子目录路径创建一个行
+      sortedPaths.forEach(detailedPath => {
+        const filesInPath = filesByDetailedPath[detailedPath];
+        
+        // 创建行容器
+        const rowContainer = document.createElement('div');
+        rowContainer.className = 'folder-row';
+        
+        // 如果有路径（不是根路径），显示路径标签
+        if (detailedPath && detailedPath !== '/') {
+          // 创建路径标签容器
+          const pathLabelContainer = document.createElement('div');
+          pathLabelContainer.className = 'path-label-container';
+          
+          // 分割路径以显示各级文件夹
+          const pathParts = detailedPath.split('/').filter(part => part.trim() !== '');
+          const lastPart = pathParts[pathParts.length - 1];
+          
+          // 显示最后一级文件夹名称
+          const pathLabel = document.createElement('div');
+          pathLabel.className = 'path-label';
+          
+          // 添加颜色标识
+          const folderLevel = calculateFolderLevel(detailedPath);
+          pathLabel.setAttribute('data-folder-level', folderLevel.toString());
+          
+          // 设置路径标签文本
+          if (lastPart) {
+            pathLabel.textContent = `📁 ${lastPart}`;
+          } else {
+            pathLabel.textContent = '📁 根目录';
+          }
+          
+          // 添加完整路径显示
+          const fullPathDisplay = document.createElement('div');
+          fullPathDisplay.className = 'full-path-display';
+          fullPathDisplay.textContent = detailedPath;
+          
+          pathLabelContainer.appendChild(pathLabel);
+          pathLabelContainer.appendChild(fullPathDisplay);
+          rowContainer.appendChild(pathLabelContainer);
+        } else {
+          // 根目录标签
+          const rootLabel = document.createElement('div');
+          rootLabel.className = 'path-label';
+          rootLabel.textContent = '📁 根目录';
+          rowContainer.appendChild(rootLabel);
         }
         
-        // 添加完整路径显示
-        const fullPathDisplay = document.createElement('div');
-        fullPathDisplay.className = 'full-path-display';
-        fullPathDisplay.textContent = detailedPath;
+        // 创建文件格子容器
+        const filesGrid = document.createElement('div');
+        filesGrid.className = 'files-grid';
         
-        pathLabelContainer.appendChild(pathLabel);
-        pathLabelContainer.appendChild(fullPathDisplay);
-        rowContainer.appendChild(pathLabelContainer);
-      } else {
-        // 根目录标签
-        const rootLabel = document.createElement('div');
-        rootLabel.className = 'path-label';
-        rootLabel.textContent = '📁 根目录';
-        rowContainer.appendChild(rootLabel);
-      }
+        // 将该路径下的文件按照名称排序后添加到格子容器
+        filesInPath.sort((a, b) => a.name.localeCompare(b.name)).forEach(file => {
+          if (SUPPORTED_TYPES.video.some(type => file.type.startsWith(type))) {
+            createVideoElement(file, filesGrid);
+          } else if (SUPPORTED_TYPES.image.some(type => file.type === type)) {
+            createImageElement(file, filesGrid);
+          }
+        });
+        
+        // 将文件格子添加到行容器
+        rowContainer.appendChild(filesGrid);
+        
+        // 将行容器添加到总容器
+        allFilesContainer.appendChild(rowContainer);
+      });
       
-      // 创建文件格子容器
+      // 将总容器添加到视频网格
+      videoGrid.appendChild(allFilesContainer);
+    } else {
+      // 单个文件处理逻辑 - 直接显示在网格中而不按文件夹分组
+      // 创建基本容器
       const filesGrid = document.createElement('div');
       filesGrid.className = 'files-grid';
       
-      // 将该路径下的文件按照名称排序后添加到格子容器
-      filesInPath.sort((a, b) => a.name.localeCompare(b.name)).forEach(file => {
+      // 按名称排序文件
+      filesToProcess.sort((a, b) => a.name.localeCompare(b.name)).forEach(file => {
         if (SUPPORTED_TYPES.video.some(type => file.type.startsWith(type))) {
           createVideoElement(file, filesGrid);
         } else if (SUPPORTED_TYPES.image.some(type => file.type === type)) {
@@ -771,15 +800,9 @@ function processVideoFiles(files) {
         }
       });
       
-      // 将文件格子添加到行容器
-      rowContainer.appendChild(filesGrid);
-      
-      // 将行容器添加到总容器
-      allFilesContainer.appendChild(rowContainer);
-    });
-    
-    // 将总容器添加到视频网格
-    videoGrid.appendChild(allFilesContainer);
+      // 添加到视频网格
+      videoGrid.appendChild(filesGrid);
+    }
     
     // 显示成功消息
     if (filesToProcess.length > 1) {
