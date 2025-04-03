@@ -1555,7 +1555,7 @@ function captureImage(imgElement, filename) {
   });
 }
 
-// 截取所有视频的函数
+// 截取所有视频并合并为一张图片
 async function captureAllVideos() {
   const containers = document.querySelectorAll('.video-container');
   
@@ -1564,14 +1564,15 @@ async function captureAllVideos() {
     return;
   }
   
-  showToast(`开始截图 ${containers.length} 个媒体文件...`, 'info');
+  showToast(`开始截图 ${containers.length} 个媒体文件并合成...`, 'info');
   
-  let captureCount = 0;
+  let capturedImages = [];
   let errorCount = 0;
   
-  // 创建一个时间戳作为文件夹标记
+  // 创建一个时间戳作为文件标记
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
   
+  // 第一步：捕获所有图像到内存
   for (let i = 0; i < containers.length; i++) {
     const container = containers[i];
     try {
@@ -1583,24 +1584,30 @@ async function captureAllVideos() {
       const img = container.querySelector('img.image-preview');
       const filename = container.querySelector('.video-filename')?.textContent || '';
       
-      // 构建文件名 (使用时间戳和原始文件名)
-      const screenshotFilename = `screenshot_${timestamp}_${i+1}_${filename.replace(/[<>:"/\\|?*]/g, '_')}.jpg`;
+      // 捕获视频/图像帧到canvas
+      let imgData;
       
       if (video) {
         // 视频容器
-        await captureVideo(video, screenshotFilename);
-        captureCount++;
+        imgData = await captureVideoToCanvas(video);
       } else if (img) {
-        // 图片容器
-        await captureImage(img, screenshotFilename);
-        captureCount++;
+        // 图片容器 
+        imgData = await captureImageToCanvas(img);
+      } else {
+        throw new Error("未找到可截图的元素");
+      }
+      
+      if (imgData) {
+        // 添加文件名作为标题
+        imgData.title = filename;
+        capturedImages.push(imgData);
       }
       
       // 移除高亮
       container.classList.remove('capturing');
       
       // 短暂延迟，避免浏览器过载
-      await new Promise(resolve => setTimeout(resolve, 200));
+      await new Promise(resolve => setTimeout(resolve, 100));
       
     } catch (e) {
       console.error(`截图第 ${i+1} 个媒体文件时出错:`, e);
@@ -1609,10 +1616,264 @@ async function captureAllVideos() {
     }
   }
   
-  // 显示结果
-  if (errorCount === 0) {
-    showToast(`成功截图 ${captureCount} 个媒体文件`, 'success');
-  } else {
-    showToast(`截图完成: ${captureCount} 成功, ${errorCount} 失败`, 'warning');
+  // 第二步：计算组合图像的布局
+  if (capturedImages.length === 0) {
+    showToast('没有可用的媒体截图', 'error');
+    return;
   }
+  
+  try {
+    // 计算最佳网格布局
+    const layout = calculateGridLayout(capturedImages);
+    
+    // 创建组合图像
+    const combinedImage = await createCombinedImage(capturedImages, layout);
+    
+    // 下载组合图像
+    const combinedFilename = `combined_screenshots_${timestamp}.jpg`;
+    downloadCanvasAsJpeg(combinedImage, combinedFilename);
+    
+    // 显示成功消息
+    showToast(`成功合成 ${capturedImages.length} 个媒体文件截图`, 'success');
+  } catch (err) {
+    console.error('创建组合图像失败:', err);
+    showToast(`合成图像失败: ${err.message}`, 'error');
+  }
+}
+
+// 将视频帧截取到canvas并返回图像数据
+function captureVideoToCanvas(video) {
+  return new Promise((resolve, reject) => {
+    try {
+      // 创建临时canvas
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      
+      // 设置合适的尺寸（如果视频太大）
+      const maxDimension = 800; // 组合图像中每个截图的最大尺寸
+      let width = video.videoWidth;
+      let height = video.videoHeight;
+      
+      if (width > maxDimension || height > maxDimension) {
+        const ratio = Math.min(maxDimension / width, maxDimension / height);
+        width = Math.floor(width * ratio);
+        height = Math.floor(height * ratio);
+      }
+      
+      canvas.width = width;
+      canvas.height = height;
+      
+      // 绘制视频帧到canvas
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, width, height);
+      
+      // 返回画布和尺寸信息
+      resolve({
+        canvas: canvas,
+        width: width,
+        height: height,
+        aspectRatio: width / height
+      });
+    } catch (e) {
+      console.error('截取视频帧到canvas时出错:', e);
+      reject(e);
+    }
+  });
+}
+
+// 将图片截取到canvas并返回图像数据
+function captureImageToCanvas(imgElement) {
+  return new Promise((resolve, reject) => {
+    try {
+      // 创建临时canvas
+      const canvas = document.createElement('canvas');
+      
+      // 设置合适的尺寸
+      let width = imgElement.naturalWidth;
+      let height = imgElement.naturalHeight;
+      
+      // 设置合适的尺寸（如果图片太大）
+      const maxDimension = 800; // 组合图像中每个截图的最大尺寸
+      if (width > maxDimension || height > maxDimension) {
+        const ratio = Math.min(maxDimension / width, maxDimension / height);
+        width = Math.floor(width * ratio);
+        height = Math.floor(height * ratio);
+      }
+      
+      canvas.width = width;
+      canvas.height = height;
+      
+      // 绘制图片到canvas
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(imgElement, 0, 0, width, height);
+      
+      // 返回画布和尺寸信息
+      resolve({
+        canvas: canvas,
+        width: width,
+        height: height,
+        aspectRatio: width / height
+      });
+    } catch (e) {
+      console.error('截取图片到canvas时出错:', e);
+      reject(e);
+    }
+  });
+}
+
+// 计算最佳网格布局
+function calculateGridLayout(images) {
+  const count = images.length;
+  
+  // 根据图片数量确定网格布局
+  let cols, rows;
+  
+  if (count <= 1) {
+    cols = 1;
+    rows = 1;
+  } else if (count <= 2) {
+    cols = 2;
+    rows = 1;
+  } else if (count <= 4) {
+    cols = 2;
+    rows = 2;
+  } else if (count <= 6) {
+    cols = 3;
+    rows = 2;
+  } else if (count <= 9) {
+    cols = 3;
+    rows = 3;
+  } else if (count <= 12) {
+    cols = 4;
+    rows = 3;
+  } else if (count <= 16) {
+    cols = 4;
+    rows = 4;
+  } else if (count <= 20) {
+    cols = 5;
+    rows = 4;
+  } else {
+    // 对于更多的图片，计算最接近平方根的行列数
+    cols = Math.ceil(Math.sqrt(count));
+    rows = Math.ceil(count / cols);
+  }
+  
+  return { cols, rows };
+}
+
+// 创建合并的图像
+function createCombinedImage(images, layout) {
+  return new Promise((resolve, reject) => {
+    try {
+      const { cols, rows } = layout;
+      
+      // 计算每个单元格的尺寸和输出画布的尺寸
+      const cellPadding = 10; // 单元格之间的间距
+      const titleHeight = 30; // 标题的高度
+      const cellWidth = 800; // 每个单元格的最大宽度
+      const cellHeight = 600 + titleHeight; // 每个单元格的最大高度(包括标题)
+      
+      // 创建输出画布
+      const outputCanvas = document.createElement('canvas');
+      outputCanvas.width = cols * cellWidth + (cols + 1) * cellPadding;
+      outputCanvas.height = rows * cellHeight + (rows + 1) * cellPadding;
+      
+      // 获取画布上下文
+      const ctx = outputCanvas.getContext('2d');
+      
+      // 填充背景
+      ctx.fillStyle = '#1a1a1a';
+      ctx.fillRect(0, 0, outputCanvas.width, outputCanvas.height);
+      
+      // 绘制每个图像
+      for (let i = 0; i < images.length; i++) {
+        const row = Math.floor(i / cols);
+        const col = i % cols;
+        const img = images[i];
+        
+        // 计算单元格位置
+        const cellX = col * cellWidth + (col + 1) * cellPadding;
+        const cellY = row * cellHeight + (row + 1) * cellPadding;
+        
+        // 填充单元格背景
+        ctx.fillStyle = '#2a2a2a';
+        ctx.fillRect(cellX, cellY, cellWidth, cellHeight);
+        
+        // 绘制图像，保持宽高比并居中
+        const imgWidth = img.width;
+        const imgHeight = img.height;
+        
+        // 计算图像的缩放和位置，保持宽高比
+        let drawWidth = imgWidth;
+        let drawHeight = imgHeight;
+        
+        if (drawWidth > cellWidth - 20) {
+          const ratio = (cellWidth - 20) / drawWidth;
+          drawWidth = drawWidth * ratio;
+          drawHeight = drawHeight * ratio;
+        }
+        
+        if (drawHeight > cellHeight - titleHeight - 20) {
+          const ratio = (cellHeight - titleHeight - 20) / drawHeight;
+          drawWidth = drawWidth * ratio;
+          drawHeight = drawHeight * ratio;
+        }
+        
+        // 计算居中位置
+        const imgX = cellX + (cellWidth - drawWidth) / 2;
+        const imgY = cellY + titleHeight + (cellHeight - titleHeight - drawHeight) / 2;
+        
+        // 绘制图像
+        ctx.drawImage(img.canvas, imgX, imgY, drawWidth, drawHeight);
+        
+        // 添加标题
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '14px Arial';
+        ctx.textAlign = 'center';
+        const title = img.title || `图像 ${i+1}`;
+        const maxTitleWidth = cellWidth - 20;
+        const truncatedTitle = truncateText(ctx, title, maxTitleWidth);
+        ctx.fillText(truncatedTitle, cellX + cellWidth / 2, cellY + 20);
+      }
+      
+      resolve(outputCanvas);
+    } catch (err) {
+      console.error('创建合并图像时出错:', err);
+      reject(err);
+    }
+  });
+}
+
+// 下载画布为JPEG
+function downloadCanvasAsJpeg(canvas, filename) {
+  canvas.toBlob(blob => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    
+    // 清理
+    setTimeout(() => {
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }, 100);
+  }, 'image/jpeg', 0.9);
+}
+
+// 截断文本以适应最大宽度
+function truncateText(ctx, text, maxWidth) {
+  if (ctx.measureText(text).width <= maxWidth) {
+    return text;
+  }
+  
+  let truncated = text;
+  while (ctx.measureText(truncated + '...').width > maxWidth && truncated.length > 0) {
+    truncated = truncated.substring(0, truncated.length - 1);
+  }
+  
+  return truncated + '...';
 }
