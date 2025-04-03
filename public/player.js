@@ -324,7 +324,7 @@ function buildFileTreeAndTraverse(entries) {
     name: 'root',
     type: 'directory',
     children: [],
-    expanded: true,
+    expanded: true, // 根节点保持展开
     path: ''
   };
   
@@ -374,7 +374,7 @@ function buildFileTreeAndTraverse(entries) {
         name: entry.name,
         type: 'directory',
         children: [],
-        expanded: true,
+        expanded: false, // 默认收起
         path: entry.fullPath || ('/' + entry.name)
       };
       
@@ -460,7 +460,11 @@ function renderFileTree(rootNode) {
     if (node.type === 'directory') {
       // 创建目录节点
       const folderItem = document.createElement('div');
-      folderItem.className = 'tree-item folder' + (node.expanded ? ' expanded' : '');
+      folderItem.className = 'tree-item folder';
+      // 只有当节点设置为展开时才添加expanded类
+      if (node.expanded) {
+        folderItem.classList.add('expanded');
+      }
       
       // 创建目录标题
       const folderTitle = document.createElement('div');
@@ -953,7 +957,7 @@ function buildFolderTreeFromFiles(files) {
     name: 'root',
     type: 'directory',
     children: [],
-    expanded: true,
+    expanded: true, // 根节点保持展开
     path: ''
   };
   
@@ -991,7 +995,7 @@ function buildFolderTreeFromFiles(files) {
           name: partName,
           type: 'directory',
           children: [],
-          expanded: true,
+          expanded: false, // 默认收起
           path: path
         };
         currentNode.children.push(newDir);
