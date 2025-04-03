@@ -215,30 +215,12 @@ function handleFolderSelect() {
 }
 
 function updateVideoCount() {
-  // 统计所有媒体容器的数量，包括在文件夹组和文件夹行内的媒体
+  // 统计所有媒体容器的数量
   let count = 0;
   
-  // 首先统计直接在视频网格中的媒体容器
-  const directContainers = videoGrid.querySelectorAll(':scope > .video-container').length;
-  count += directContainers;
-  
-  // 然后统计在文件夹组内的媒体容器
-  const folderGroups = videoGrid.querySelectorAll('.folder-group');
-  folderGroups.forEach(group => {
-    // 获取文件夹行内的媒体容器
-    const rows = group.querySelectorAll('.folder-row');
-    if (rows.length > 0) {
-      // 如果有行容器，从行容器中统计媒体容器
-      rows.forEach(row => {
-        const rowContainers = row.querySelectorAll('.video-container').length;
-        count += rowContainers;
-      });
-    } else {
-      // 如果没有行容器，直接统计文件夹组内的媒体容器
-      const groupContainers = group.querySelectorAll(':scope > .folder-group-items > .video-container').length;
-      count += groupContainers;
-    }
-  });
+  // 获取所有的视频容器，包括在文件格子内的
+  const allContainers = document.querySelectorAll('.video-container');
+  count = allContainers.length;
   
   // 更新计数显示
   currentCount.textContent = count;
@@ -587,32 +569,27 @@ function renderFileTree(rootNode) {
 function scrollToMediaFile(path) {
   if (!path) return;
   
-  // 查找具有匹配路径的视频容器（包括在文件夹组内的）
-  let targetContainer = null;
-  
-  // 首先检查直接在视频网格中的容器
-  const directContainers = Array.from(videoGrid.querySelectorAll(':scope > .video-container'));
-  targetContainer = directContainers.find(container => container.dataset.path === path);
-  
-  // 如果没有找到，检查文件夹组内的容器
-  if (!targetContainer) {
-    const folderGroups = videoGrid.querySelectorAll('.folder-group');
-    for (let i = 0; i < folderGroups.length; i++) {
-      const groupContainers = Array.from(folderGroups[i].querySelectorAll('.video-container'));
-      targetContainer = groupContainers.find(container => container.dataset.path === path);
-      if (targetContainer) break;
-    }
-  }
+  // 查找具有匹配路径的视频容器
+  const allContainers = Array.from(document.querySelectorAll('.video-container'));
+  const targetContainer = allContainers.find(container => container.dataset.path === path);
   
   if (targetContainer) {
-    // 滚动到目标容器
-    targetContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    // 找到对应的行容器，确保它在视图中
+    const parentRow = targetContainer.closest('.folder-row');
+    if (parentRow) {
+      parentRow.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
     
-    // 添加高亮效果
-    targetContainer.classList.add('highlight');
+    // 然后滚动到目标容器
     setTimeout(() => {
-      targetContainer.classList.remove('highlight');
-    }, 2000);
+      targetContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      
+      // 添加高亮效果
+      targetContainer.classList.add('highlight');
+      setTimeout(() => {
+        targetContainer.classList.remove('highlight');
+      }, 2000);
+    }, 300);
   }
 }
 
@@ -639,98 +616,103 @@ function processVideoFiles(files) {
   const filesToProcess = mediaFiles.slice(0, remainingSlots);
   
   if (filesToProcess.length > 0) {
-    // 按文件夹路径进行分组
-    const filesByFolder = {};
+    // 按完整文件夹路径进行分组
+    const filesByPath = {};
     
     filesToProcess.forEach(file => {
-      let folderPath = '';
+      let folderPath = '/';
       if (file.fullPath) {
-        // 获取文件所在的文件夹路径
+        // 获取文件所在的完整文件夹路径
         folderPath = getFolderPath(file.fullPath);
       }
       
-      // 如果该文件夹路径不存在于分组中，创建一个新数组
-      if (!filesByFolder[folderPath]) {
-        filesByFolder[folderPath] = [];
+      // 如果该路径不存在于分组中，创建一个新数组
+      if (!filesByPath[folderPath]) {
+        filesByPath[folderPath] = [];
       }
       
-      // 将文件添加到对应的文件夹分组
-      filesByFolder[folderPath].push(file);
+      // 将文件添加到对应的路径分组
+      filesByPath[folderPath].push(file);
     });
     
     // 按文件夹路径排序
-    const sortedFolders = Object.keys(filesByFolder).sort();
+    const sortedPaths = Object.keys(filesByPath).sort();
     
-    // 为每个文件夹创建一个组并添加其中的文件
-    sortedFolders.forEach(folderPath => {
-      const folderFiles = filesByFolder[folderPath];
+    // 创建一个统一的容器
+    const allFilesContainer = document.createElement('div');
+    allFilesContainer.className = 'all-files-container';
+    
+    // 为每个完整路径创建一个行
+    sortedPaths.forEach(folderPath => {
+      const filesInPath = filesByPath[folderPath];
       
-      // 创建文件夹分组容器
-      const folderGroup = document.createElement('div');
-      folderGroup.className = 'folder-group';
+      // 创建行容器
+      const rowContainer = document.createElement('div');
+      rowContainer.className = 'folder-row';
       
-      // 创建文件夹标题
-      const folderHeader = document.createElement('div');
-      folderHeader.className = 'folder-group-header';
-      
-      // 创建文件夹图标
-      const folderIcon = document.createElement('span');
-      folderIcon.textContent = '📁';
-      
-      // 创建文件夹名称
-      const folderName = document.createElement('span');
-      folderName.className = 'folder-group-name';
-      
-      // 显示文件夹路径名称（如果有）
+      // 如果有路径（不是根路径），显示路径标签
       if (folderPath && folderPath !== '/') {
-        // 获取只有最后一级的文件夹名称
-        const pathParts = folderPath.split('/');
-        const lastFolderName = pathParts[pathParts.length - 1];
-        folderName.textContent = lastFolderName;
+        // 创建路径标签容器
+        const pathLabelContainer = document.createElement('div');
+        pathLabelContainer.className = 'path-label-container';
+        
+        // 分割路径以显示各级文件夹
+        const pathParts = folderPath.split('/').filter(part => part.trim() !== '');
+        const lastPart = pathParts[pathParts.length - 1];
+        
+        // 显示最后一级文件夹名称
+        const pathLabel = document.createElement('div');
+        pathLabel.className = 'path-label';
         
         // 添加颜色标识
         const folderLevel = calculateFolderLevel(folderPath);
-        folderName.setAttribute('data-folder-level', folderLevel.toString());
+        pathLabel.setAttribute('data-folder-level', folderLevel.toString());
         
-        // 应用颜色样式
-        if (document.body.classList.contains('dark-mode')) {
-          // 暗黑模式颜色
-          const bgColors = ['#483041', '#372f48', '#2f4837', '#483730', '#303748', '#483037', '#374830', '#304148', '#413048', '#484130'];
-          const textColors = ['#e0b5d6', '#c4b5e0', '#b5e0c4', '#e0c4b5', '#b5c4e0', '#e0b5c4', '#c4e0b5', '#b5d6e0', '#d6b5e0', '#e0d6b5'];
-          folderName.style.backgroundColor = bgColors[folderLevel];
-          folderName.style.color = textColors[folderLevel];
-          folderName.style.padding = '2px 8px';
-          folderName.style.borderRadius = '4px';
+        // 设置路径标签文本
+        if (lastPart) {
+          pathLabel.textContent = `📁 ${lastPart}`;
         } else {
-          // 浅色模式颜色
-          const bgColors = ['#f5e2f0', '#e9e2f5', '#e2f5e9', '#f5e9e2', '#e2e9f5', '#f5e2e9', '#e9f5e2', '#e2f0f5', '#f0e2f5', '#f5f0e2'];
-          const textColors = ['#703b61', '#4a3b70', '#3b704a', '#704a3b', '#3b4a70', '#703b4a', '#4a703b', '#3b6170', '#613b70', '#706b3b'];
-          folderName.style.backgroundColor = bgColors[folderLevel];
-          folderName.style.color = textColors[folderLevel];
-          folderName.style.padding = '2px 8px';
-          folderName.style.borderRadius = '4px';
+          pathLabel.textContent = '📁 根目录';
         }
+        
+        // 添加完整路径显示
+        const fullPathDisplay = document.createElement('div');
+        fullPathDisplay.className = 'full-path-display';
+        fullPathDisplay.textContent = folderPath;
+        
+        pathLabelContainer.appendChild(pathLabel);
+        pathLabelContainer.appendChild(fullPathDisplay);
+        rowContainer.appendChild(pathLabelContainer);
       } else {
-        folderName.textContent = '根目录';
+        // 根目录标签
+        const rootLabel = document.createElement('div');
+        rootLabel.className = 'path-label';
+        rootLabel.textContent = '📁 根目录';
+        rowContainer.appendChild(rootLabel);
       }
       
-      // 组装文件夹标题
-      folderHeader.appendChild(folderIcon);
-      folderHeader.appendChild(folderName);
-      folderGroup.appendChild(folderHeader);
+      // 创建文件格子容器
+      const filesGrid = document.createElement('div');
+      filesGrid.className = 'files-grid';
       
-      // 创建文件夹内容容器 - 使用flex布局以支持换行
-      const folderItems = document.createElement('div');
-      folderItems.className = 'folder-group-items';
-      folderGroup.appendChild(folderItems);
+      // 将该路径下的文件添加到格子容器
+      filesInPath.forEach(file => {
+        if (SUPPORTED_TYPES.video.some(type => file.type.startsWith(type))) {
+          createVideoElement(file, filesGrid);
+        } else if (SUPPORTED_TYPES.image.some(type => file.type === type)) {
+          createImageElement(file, filesGrid);
+        }
+      });
       
-      // 将文件添加到对应的文件夹组
-      // 使用自定义的处理函数，确保不同路径的视频在不同行
-      organizeFilesByPath(folderFiles, folderItems);
+      // 将文件格子添加到行容器
+      rowContainer.appendChild(filesGrid);
       
-      // 将文件夹组添加到视频网格中
-      videoGrid.appendChild(folderGroup);
+      // 将行容器添加到总容器
+      allFilesContainer.appendChild(rowContainer);
     });
+    
+    // 将总容器添加到视频网格
+    videoGrid.appendChild(allFilesContainer);
     
     // 显示成功消息
     if (filesToProcess.length > 1) {
@@ -746,78 +728,6 @@ function processVideoFiles(files) {
   // 更新视频计数和下载按钮状态
   updateVideoCount();
   updateDownloadButtonState();
-}
-
-// 按子文件夹路径组织文件并创建视频元素
-function organizeFilesByPath(files, parentElement) {
-  // 按子文件夹分组
-  const filesBySubPath = {};
-  
-  files.forEach(file => {
-    // 提取子路径（更深层次的文件夹）
-    let subPath = '';
-    if (file.fullPath) {
-      const fullPathParts = file.fullPath.split('/');
-      // 移除文件名
-      fullPathParts.pop();
-      
-      // 如果路径有多级，获取最深的子路径
-      if (fullPathParts.length > 0) {
-        subPath = fullPathParts.join('/');
-      }
-    }
-    
-    // 如果该子路径不存在于分组中，创建一个新数组
-    if (!filesBySubPath[subPath]) {
-      filesBySubPath[subPath] = [];
-    }
-    
-    // 将文件添加到对应的子路径分组
-    filesBySubPath[subPath].push(file);
-  });
-  
-  // 按子路径排序
-  const sortedSubPaths = Object.keys(filesBySubPath).sort();
-  
-  // 为每个子路径创建一个行容器
-  sortedSubPaths.forEach(subPath => {
-    const rowFiles = filesBySubPath[subPath];
-    
-    // 创建子路径行容器
-    const rowContainer = document.createElement('div');
-    rowContainer.className = 'folder-row';
-    
-    // 如果有子路径，显示子路径名称
-    if (subPath && subPath !== '/') {
-      const pathParts = subPath.split('/');
-      const deepestPart = pathParts[pathParts.length - 1];
-      
-      // 显示深层子文件夹标签
-      if (deepestPart && pathParts.length > 1) {
-        const subPathLabel = document.createElement('div');
-        subPathLabel.className = 'sub-path-label';
-        subPathLabel.textContent = `📁 ${deepestPart}`;
-        
-        // 添加颜色标识
-        const folderLevel = calculateFolderLevel(subPath);
-        subPathLabel.setAttribute('data-folder-level', folderLevel.toString());
-        
-        rowContainer.appendChild(subPathLabel);
-      }
-    }
-    
-    // 将文件添加到子路径行
-    rowFiles.forEach(file => {
-      if (SUPPORTED_TYPES.video.some(type => file.type.startsWith(type))) {
-        createVideoElement(file, rowContainer);
-      } else if (SUPPORTED_TYPES.image.some(type => file.type === type)) {
-        createImageElement(file, rowContainer);
-      }
-    });
-    
-    // 将行容器添加到父元素
-    parentElement.appendChild(rowContainer);
-  });
 }
 
 function createVideoElement(file, parentContainer) {
@@ -1009,54 +919,14 @@ downloadAllButton.addEventListener('click', handleDownloadAll);
 updateDownloadButtonState();
 
 function updateDownloadButtonState() {
-  // 检查是否有任何媒体文件（包括在文件夹组和文件夹行内的）
-  const directContainers = videoGrid.querySelectorAll(':scope > .video-container').length;
-  let folderGroupsContainers = 0;
-  
-  const folderGroups = videoGrid.querySelectorAll('.folder-group');
-  folderGroups.forEach(group => {
-    // 获取文件夹行内的媒体容器
-    const rows = group.querySelectorAll('.folder-row');
-    if (rows.length > 0) {
-      // 如果有行容器，从行容器中统计媒体容器
-      rows.forEach(row => {
-        folderGroupsContainers += row.querySelectorAll('.video-container').length;
-      });
-    } else {
-      // 如果没有行容器，直接统计文件夹组内的媒体容器
-      folderGroupsContainers += group.querySelectorAll(':scope > .folder-group-items > .video-container').length;
-    }
-  });
-  
-  const hasVideos = directContainers > 0 || folderGroupsContainers > 0;
+  // 检查是否有任何媒体文件
+  const hasVideos = document.querySelectorAll('.video-container').length > 0;
   downloadAllButton.disabled = !hasVideos;
 }
 
 function handleDownloadAll() {
-  // 获取所有视频容器，包括在文件夹组内的
-  let allContainers = [];
-  
-  // 首先获取直接在视频网格中的媒体容器
-  const directContainers = Array.from(videoGrid.querySelectorAll(':scope > .video-container'));
-  allContainers = allContainers.concat(directContainers);
-  
-  // 然后获取在文件夹组内的媒体容器，包括文件夹行
-  const folderGroups = videoGrid.querySelectorAll('.folder-group');
-  folderGroups.forEach(group => {
-    // 获取文件夹行内的媒体容器
-    const rows = group.querySelectorAll('.folder-row');
-    if (rows.length > 0) {
-      // 如果有行容器，从行容器中获取媒体容器
-      rows.forEach(row => {
-        const rowContainers = Array.from(row.querySelectorAll('.video-container'));
-        allContainers = allContainers.concat(rowContainers);
-      });
-    } else {
-      // 如果没有行容器，直接获取文件夹组内的媒体容器
-      const groupContainers = Array.from(group.querySelectorAll(':scope > .folder-group-items > .video-container'));
-      allContainers = allContainers.concat(groupContainers);
-    }
-  });
+  // 获取所有视频容器
+  const allContainers = Array.from(document.querySelectorAll('.video-container'));
   
   // 处理每个容器以触发下载
   allContainers.forEach((container, index) => {

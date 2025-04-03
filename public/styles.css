@@ -159,199 +159,165 @@ h1 {
   width: 100%;
 }
 
-/* 文件夹行样式 - 使不同文件夹路径的视频在不同行显示 */
+/* 文件夹行样式 - 一个完整路径对应一行 */
 .folder-row {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding: 12px;
+  border-radius: 8px;
+  background: rgba(20, 20, 20, 0.3);
+  margin-bottom: 16px;
+  border-left: 3px solid rgba(255, 255, 255, 0.1);
+}
+
+/* 路径标签容器 */
+.path-label-container {
+  display: flex;
+  align-items: center;
+  margin-bottom: 12px;
+  gap: 10px;
+}
+
+/* 路径标签 */
+.path-label {
+  font-size: 0.9rem;
+  font-weight: 500;
+  padding: 3px 10px;
+  border-radius: 6px;
+  background: rgba(30, 30, 30, 0.6);
+  color: rgba(255, 255, 255, 0.85);
+}
+
+/* 完整路径显示 */
+.full-path-display {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.5);
+  font-family: monospace;
+}
+
+/* 文件格子容器 */
+.files-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: 16px;
   width: 100%;
-  padding-top: 5px;
-  padding-bottom: 5px;
-  border-bottom: 1px dashed rgba(255, 255, 255, 0.05);
-  position: relative;
 }
 
-.folder-row:last-child {
-  border-bottom: none;
+/* 应用路径标签颜色样式 */
+.path-label[data-folder-level="1"] { background-color: #e9e2f5; color: #4a3b70; }
+.path-label[data-folder-level="2"] { background-color: #e2f5e9; color: #3b704a; }
+.path-label[data-folder-level="3"] { background-color: #f5e9e2; color: #704a3b; }
+.path-label[data-folder-level="4"] { background-color: #e2e9f5; color: #3b4a70; }
+.path-label[data-folder-level="5"] { background-color: #f5e2e9; color: #703b4a; }
+.path-label[data-folder-level="6"] { background-color: #e9f5e2; color: #4a703b; }
+.path-label[data-folder-level="7"] { background-color: #e2f0f5; color: #3b6170; }
+.path-label[data-folder-level="8"] { background-color: #f0e2f5; color: #613b70; }
+.path-label[data-folder-level="9"] { background-color: #f5f0e2; color: #706b3b; }
+.path-label[data-folder-level="0"] { background-color: #f5e2f0; color: #703b61; }
+
+/* 暗黑模式下的文件夹行样式 */
+.dark-mode .folder-row {
+  background: rgba(15, 15, 15, 0.4);
+  border-left: 3px solid rgba(255, 255, 255, 0.08);
 }
 
-/* 子路径标签样式 */
-.sub-path-label {
-  grid-column: 1 / -1;
-  font-size: 0.85rem;
-  color: rgba(255, 255, 255, 0.7);
-  margin-bottom: 8px;
-  padding: 4px 8px;
-  display: inline-block;
+/* 暗黑模式下的路径标签 */
+.dark-mode .path-label {
+  background: rgba(25, 25, 25, 0.8);
+}
+
+/* 暗黑模式下的路径标签颜色 */
+.dark-mode .path-label[data-folder-level="1"] { background-color: #372f48; color: #c4b5e0; }
+.dark-mode .path-label[data-folder-level="2"] { background-color: #2f4837; color: #b5e0c4; }
+.dark-mode .path-label[data-folder-level="3"] { background-color: #483730; color: #e0c4b5; }
+.dark-mode .path-label[data-folder-level="4"] { background-color: #303748; color: #b5c4e0; }
+.dark-mode .path-label[data-folder-level="5"] { background-color: #483037; color: #e0b5c4; }
+.dark-mode .path-label[data-folder-level="6"] { background-color: #374830; color: #c4e0b5; }
+.dark-mode .path-label[data-folder-level="7"] { background-color: #304148; color: #b5d6e0; }
+.dark-mode .path-label[data-folder-level="8"] { background-color: #413048; color: #d6b5e0; }
+.dark-mode .path-label[data-folder-level="9"] { background-color: #484130; color: #e0d6b5; }
+.dark-mode .path-label[data-folder-level="0"] { background-color: #483041; color: #e0b5d6; }
+
+/* 视频容器高亮效果 */
+.video-container.highlight {
+  animation: highlight-pulse 2s ease-in-out;
+  box-shadow: 0 0 0 2px #3b82f6;
+}
+
+@keyframes highlight-pulse {
+  0% {
+    box-shadow: 0 0 0 2px #3b82f6;
+  }
+  50% {
+    box-shadow: 0 0 0 4px #3b82f6;
+  }
+  100% {
+    box-shadow: 0 0 0 2px #3b82f6;
+  }
+}
+
+/* 路径标签样式 */
+.path-tag {
+  font-size: 12px;
+  padding: 2px 8px;
   border-radius: 4px;
+  margin-bottom: 6px;
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-weight: 500;
 }
 
-.dark-mode .folder-group {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+/* 文件夹彩色标识 - 使用不同颜色但保持区分度高且不过度饱和 */
+.path-tag[data-folder-level="1"] { background-color: #e9e2f5; color: #4a3b70; }
+.path-tag[data-folder-level="2"] { background-color: #e2f5e9; color: #3b704a; }
+.path-tag[data-folder-level="3"] { background-color: #f5e9e2; color: #704a3b; }
+.path-tag[data-folder-level="4"] { background-color: #e2e9f5; color: #3b4a70; }
+.path-tag[data-folder-level="5"] { background-color: #f5e2e9; color: #703b4a; }
+.path-tag[data-folder-level="6"] { background-color: #e9f5e2; color: #4a703b; }
+.path-tag[data-folder-level="7"] { background-color: #e2f0f5; color: #3b6170; }
+.path-tag[data-folder-level="8"] { background-color: #f0e2f5; color: #613b70; }
+.path-tag[data-folder-level="9"] { background-color: #f5f0e2; color: #706b3b; }
+.path-tag[data-folder-level="0"] { background-color: #f5e2f0; color: #703b61; }
+
+/* 暗黑模式下的文件夹颜色标识 */
+.dark-mode .path-tag[data-folder-level="1"] { background-color: #372f48; color: #c4b5e0; }
+.dark-mode .path-tag[data-folder-level="2"] { background-color: #2f4837; color: #b5e0c4; }
+.dark-mode .path-tag[data-folder-level="3"] { background-color: #483730; color: #e0c4b5; }
+.dark-mode .path-tag[data-folder-level="4"] { background-color: #303748; color: #b5c4e0; }
+.dark-mode .path-tag[data-folder-level="5"] { background-color: #483037; color: #e0b5c4; }
+.dark-mode .path-tag[data-folder-level="6"] { background-color: #374830; color: #c4e0b5; }
+.dark-mode .path-tag[data-folder-level="7"] { background-color: #304148; color: #b5d6e0; }
+.dark-mode .path-tag[data-folder-level="8"] { background-color: #413048; color: #d6b5e0; }
+.dark-mode .path-tag[data-folder-level="9"] { background-color: #484130; color: #e0d6b5; }
+.dark-mode .path-tag[data-folder-level="0"] { background-color: #483041; color: #e0b5d6; }
+
+/* 一般暗黑模式下的默认样式 */
+.dark-mode .path-tag {
+  background-color: #374151;
+  color: #d1d5db;
 }
 
-.dark-mode .folder-group-header {
-  background: rgba(25, 25, 25, 0.9);
-}
-
-.video-container {
-  width: 100%;
-  background: #1F1F1F;
-  border-radius: 10px;
-  overflow: hidden;
+/* 整体文件容器 */
+.all-files-container {
   display: flex;
   flex-direction: column;
-  position: relative;
-}
-
-.video-wrapper {
-  position: relative;
+  gap: 20px;
   width: 100%;
-  background: #000;
-  display: flex;
-  justify-content: center;
 }
 
-video {
-  max-width: 100%;
-  max-height: 320px;
-  width: auto;
-  height: auto;
-}
-
-.image-preview {
-  max-width: 100%;
-  max-height: 320px;
-  object-fit: contain;
-  display: block;
-}
-
-.video-info {
-  padding: 8px;
-  overflow: hidden;
-  color: #fff;
-  background: #1F1F1F;
-  position: relative;
-}
-
-.video-filename {
-  font-size: 0.85rem;
-  color: rgba(255, 255, 255, 0.6);
-  word-break: break-word;
-}
-
-.video-path {
-  font-size: 11px;
-  color: #6b7280;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  margin-top: 2px;
-  max-width: 100%;
-  display: block;
-  padding: 1px 0;
-}
-
-.remove-video {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  background: rgba(46, 46, 46, 0.8);
-  backdrop-filter: blur(80px);
-  border: none;
-  color: #fff;
-  padding: 3px 6px;
-  border-radius: 6px;
-  cursor: pointer;
-  z-index: 10;
-  transition: background-color 0.2s;
-  font-size: 0.9rem;
-}
-
-.remove-video:hover {
-  background: rgba(220, 38, 38, 0.8);
-}
-
-/* Status Area */
-.status-area {
-  margin-top: 20px;
-  padding: 10px;
-  background: #1F1F1F;
-  border-radius: 8px;
-  color: rgba(255, 255, 255, 0.6);
-  font-size: 0.9rem;
-}
-
-/* Toast Notifications */
-.toast-container {
-  position: fixed;
-  bottom: 20px;
-  right: 20px;
-  z-index: 1000;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-}
-
-.toast {
-  background: rgba(30, 34, 42, 0.9);
-  color: #fff;
-  padding: 12px 20px;
-  border-radius: 8px;
-  margin-top: 10px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  transform: translateY(100px);
-  opacity: 0;
-  transition: transform 0.3s ease, opacity 0.3s ease;
-  max-width: 300px;
-}
-
-.toast.show {
-  transform: translateY(0);
-  opacity: 1;
-}
-
-.toast.success {
-  border-left: 4px solid #10b981;
-}
-
-.toast.error {
-  border-left: 4px solid #ef4444;
-}
-
-.toast.info {
-  border-left: 4px solid #3b82f6;
-}
-
-/* Notes section */
-.notes-section {
-  max-width: 800px;
-  margin: 20px auto;
-  padding: 15px 20px;
-  background-color: #f7f9fa;
-  border-radius: 8px;
-  border-left: 4px solid #4f46e5;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
-}
-
-.notes-section h3 {
-  color: #4f46e5;
-  margin-top: 0;
-  font-size: 1.2rem;
-  display: flex;
-  align-items: center;
-}
-
-.notes-section ul {
-  padding-left: 20px;
-  margin-bottom: 0;
-}
-
-.notes-section li {
-  margin-bottom: 8px;
-  color: #374151;
-  line-height: 1.5;
+/* 响应式调整 */
+@media (max-width: 768px) {
+  .file-tree-container {
+    padding: 10px;
+  }
+  
+  .folder-name, .file-name {
+    max-width: 200px;
+  }
 }
 
 /* 文件树样式 */
@@ -511,4 +477,163 @@ video {
 .dark-mode .path-tag {
   background-color: #374151;
   color: #d1d5db;
+}
+
+.video-container {
+  width: 100%;
+  background: #1F1F1F;
+  border-radius: 10px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.video-wrapper {
+  position: relative;
+  width: 100%;
+  background: #000;
+  display: flex;
+  justify-content: center;
+}
+
+video {
+  max-width: 100%;
+  max-height: 320px;
+  width: auto;
+  height: auto;
+}
+
+.image-preview {
+  max-width: 100%;
+  max-height: 320px;
+  object-fit: contain;
+  display: block;
+}
+
+.video-info {
+  padding: 8px;
+  overflow: hidden;
+  color: #fff;
+  background: #1F1F1F;
+  position: relative;
+}
+
+.video-filename {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.6);
+  word-break: break-word;
+}
+
+.video-path {
+  font-size: 11px;
+  color: #6b7280;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 2px;
+  max-width: 100%;
+  display: block;
+  padding: 1px 0;
+}
+
+.remove-video {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  background: rgba(46, 46, 46, 0.8);
+  backdrop-filter: blur(80px);
+  border: none;
+  color: #fff;
+  padding: 3px 6px;
+  border-radius: 6px;
+  cursor: pointer;
+  z-index: 10;
+  transition: background-color 0.2s;
+  font-size: 0.9rem;
+}
+
+.remove-video:hover {
+  background: rgba(220, 38, 38, 0.8);
+}
+
+/* Status Area */
+.status-area {
+  margin-top: 20px;
+  padding: 10px;
+  background: #1F1F1F;
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.9rem;
+}
+
+/* Toast Notifications */
+.toast-container {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.toast {
+  background: rgba(30, 34, 42, 0.9);
+  color: #fff;
+  padding: 12px 20px;
+  border-radius: 8px;
+  margin-top: 10px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transform: translateY(100px);
+  opacity: 0;
+  transition: transform 0.3s ease, opacity 0.3s ease;
+  max-width: 300px;
+}
+
+.toast.show {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+.toast.success {
+  border-left: 4px solid #10b981;
+}
+
+.toast.error {
+  border-left: 4px solid #ef4444;
+}
+
+.toast.info {
+  border-left: 4px solid #3b82f6;
+}
+
+/* Notes section */
+.notes-section {
+  max-width: 800px;
+  margin: 20px auto;
+  padding: 15px 20px;
+  background-color: #f7f9fa;
+  border-radius: 8px;
+  border-left: 4px solid #4f46e5;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+}
+
+.notes-section h3 {
+  color: #4f46e5;
+  margin-top: 0;
+  font-size: 1.2rem;
+  display: flex;
+  align-items: center;
+}
+
+.notes-section ul {
+  padding-left: 20px;
+  margin-bottom: 0;
+}
+
+.notes-section li {
+  margin-bottom: 8px;
+  color: #374151;
+  line-height: 1.5;
 } 
