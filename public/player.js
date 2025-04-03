@@ -48,6 +48,12 @@ const SUPPORTED_TYPES = {
   image: ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml']
 };
 
+// 添加新的常量
+// 截图相关常量
+const SCREENSHOT_BUTTON_TEXT = '📷 截图';
+const SCREENSHOT_ALL_BUTTON_TEXT = '📷 截取所有视频';
+const SCREENSHOT_FILENAME_PREFIX = 'video_screenshot_';
+
 // 用于存储文件树结构
 let fileTreeStructure = null;
 
@@ -86,6 +92,24 @@ document.addEventListener('DOMContentLoaded', function() {
   if (!dropZone) {
     console.error('Drop zone element not found');
     return;
+  }
+
+  // 添加截图所有视频的按钮
+  const screenshotAllButton = document.createElement('button');
+  screenshotAllButton.id = 'screenshotAllButton';
+  screenshotAllButton.className = 'screenshot-button';
+  screenshotAllButton.textContent = SCREENSHOT_ALL_BUTTON_TEXT;
+  screenshotAllButton.addEventListener('click', captureAllVideos);
+  
+  // 将按钮放在下载按钮旁边
+  if (downloadAllButton) {
+    downloadAllButton.parentNode.insertBefore(screenshotAllButton, downloadAllButton.nextSibling);
+  } else {
+    // 如果找不到下载按钮，添加到header
+    const header = document.querySelector('.header');
+    if (header) {
+      header.appendChild(screenshotAllButton);
+    }
   }
 
   // 设置拖放事件
@@ -641,13 +665,13 @@ function scrollToMediaFile(path) {
     
     // 然后滚动到目标容器
     setTimeout(() => {
-      targetContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      
-      // 添加高亮效果
-      targetContainer.classList.add('highlight');
-      setTimeout(() => {
-        targetContainer.classList.remove('highlight');
-      }, 2000);
+    targetContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    
+    // 添加高亮效果
+    targetContainer.classList.add('highlight');
+    setTimeout(() => {
+      targetContainer.classList.remove('highlight');
+    }, 2000);
     }, 300);
   }
 }
@@ -753,6 +777,35 @@ function createVideoElement(file, parentContainer) {
     updateDownloadButtonState();
   });
   
+  // 添加截图按钮
+  const screenshotButton = document.createElement('button');
+  screenshotButton.className = 'screenshot-video-button';
+  screenshotButton.innerHTML = '📸';
+  screenshotButton.title = '截图';
+  screenshotButton.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    
+    try {
+      // 高亮容器
+      videoContainer.classList.add('capturing');
+      
+      // 获取文件名
+      const filename = file.name.replace(/\.[^/.]+$/, '') + '_screenshot_' + Date.now() + '.jpg';
+      
+      // 截图
+      await captureVideo(video, filename);
+      
+      // 显示成功消息
+      showToast('截图已保存', 'success');
+    } catch (err) {
+      console.error('截图失败:', err);
+      showToast('截图失败: ' + err.message, 'error');
+    } finally {
+      // 移除高亮
+      videoContainer.classList.remove('capturing');
+    }
+  });
+  
   const videoInfo = document.createElement('div');
   videoInfo.className = 'video-info';
   
@@ -782,6 +835,7 @@ function createVideoElement(file, parentContainer) {
   
   videoWrapper.appendChild(video);
   videoContainer.appendChild(removeButton);
+  videoContainer.appendChild(screenshotButton); // 添加截图按钮
   videoContainer.appendChild(videoWrapper);
   videoInfo.appendChild(filename);
   
@@ -802,8 +856,8 @@ function createVideoElement(file, parentContainer) {
   
   // 更新视频计数，但不重复调用，让函数的调用者决定是否更新
   if (container === videoGrid) {
-    updateVideoCount();
-    updateDownloadButtonState();
+  updateVideoCount();
+  updateDownloadButtonState();
   }
   
   // Clean up object URL when video is removed from DOM
@@ -849,6 +903,35 @@ function createImageElement(file, parentContainer) {
     updateDownloadButtonState();
   });
   
+  // 添加截图按钮
+  const screenshotButton = document.createElement('button');
+  screenshotButton.className = 'screenshot-video-button';
+  screenshotButton.innerHTML = '📸';
+  screenshotButton.title = '截图';
+  screenshotButton.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    
+    try {
+      // 高亮容器
+      imageContainer.classList.add('capturing');
+      
+      // 获取文件名
+      const filename = file.name.replace(/\.[^/.]+$/, '') + '_screenshot_' + Date.now() + '.jpg';
+      
+      // 截图
+      await captureImage(image, filename);
+      
+      // 显示成功消息
+      showToast('截图已保存', 'success');
+    } catch (err) {
+      console.error('截图失败:', err);
+      showToast('截图失败: ' + err.message, 'error');
+    } finally {
+      // 移除高亮
+      imageContainer.classList.remove('capturing');
+    }
+  });
+  
   const imageInfo = document.createElement('div');
   imageInfo.className = 'video-info';
   
@@ -878,6 +961,7 @@ function createImageElement(file, parentContainer) {
   
   imageWrapper.appendChild(image);
   imageContainer.appendChild(removeButton);
+  imageContainer.appendChild(screenshotButton); // 添加截图按钮
   imageContainer.appendChild(imageWrapper);
   imageInfo.appendChild(filename);
   
@@ -898,8 +982,8 @@ function createImageElement(file, parentContainer) {
   
   // 更新视频计数，但不重复调用，让函数的调用者决定是否更新
   if (container === videoGrid) {
-    updateVideoCount();
-    updateDownloadButtonState();
+  updateVideoCount();
+  updateDownloadButtonState();
   }
   
   return imageContainer;
@@ -1043,8 +1127,8 @@ function calculateFolderLevel(path) {
   
   // 处理路径中的哈希值
   const cleanPath = path.startsWith('/') ? path.substring(1) : path;
-  const parts = cleanPath.split('/');
-  
+    const parts = cleanPath.split('/');
+    
   // 使用路径的哈希值计算0-9之间的数字，确保同一路径始终得到相同的颜色
   let hash = 0;
   for (let i = 0; i < cleanPath.length; i++) {
@@ -1129,7 +1213,7 @@ function filterVideosByFolder(folderPath) {
   if (window.originalVideoLayout) {
     allContainers = Array.from(window.originalVideoLayout.querySelectorAll('.video-container, .image-container'));
     console.log(`从原始布局中找到 ${allContainers.length} 个媒体容器`);
-  } else {
+    } else {
     // 否则从当前DOM中获取容器
     allContainers = Array.from(videoGrid.querySelectorAll('.video-container, .image-container'));
     console.log(`从当前DOM中找到 ${allContainers.length} 个媒体容器`);
@@ -1307,6 +1391,42 @@ function attachEventListenersToContainer(container) {
     });
   }
   
+  // 添加截图按钮事件
+  const screenshotButton = container.querySelector('.screenshot-video-button');
+  if (screenshotButton) {
+    screenshotButton.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      
+      try {
+        // 高亮容器
+        container.classList.add('capturing');
+        
+        // 获取文件名
+        const filenameElement = container.querySelector('.video-filename');
+        const filename = (filenameElement ? filenameElement.textContent : 'screenshot') + '_' + Date.now() + '.jpg';
+        
+        // 截图
+        if (video) {
+          await captureVideo(video, filename);
+        } else {
+          const img = container.querySelector('img.image-preview');
+          if (img) {
+            await captureImage(img, filename);
+          }
+        }
+        
+        // 显示成功消息
+        showToast('截图已保存', 'success');
+      } catch (err) {
+        console.error('截图失败:', err);
+        showToast('截图失败: ' + err.message, 'error');
+      } finally {
+        // 移除高亮
+        container.classList.remove('capturing');
+      }
+    });
+  }
+  
   return container;
 }
 
@@ -1334,4 +1454,165 @@ function sortFileTree(node) {
   }
   
   return node;
+}
+
+// 截取单个视频的函数
+function captureVideo(video, filename) {
+  return new Promise((resolve, reject) => {
+    try {
+      // 创建临时canvas
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      
+      // 设置合适的尺寸（如果视频太大）
+      const maxDimension = 1920; // 最大宽度/高度限制
+      if (canvas.width > maxDimension || canvas.height > maxDimension) {
+        const ratio = Math.min(maxDimension / canvas.width, maxDimension / canvas.height);
+        canvas.width = canvas.width * ratio;
+        canvas.height = canvas.height * ratio;
+      }
+      
+      // 绘制视频帧到canvas
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      
+      // 将canvas转换为Blob
+      canvas.toBlob(blob => {
+        // 创建下载链接
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename || (SCREENSHOT_FILENAME_PREFIX + Date.now() + '.jpg');
+        a.style.display = 'none';
+        document.body.appendChild(a);
+        a.click();
+        
+        // 清理
+        setTimeout(() => {
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+          resolve(true);
+        }, 100);
+      }, 'image/jpeg', 0.9);
+      
+    } catch (e) {
+      console.error('截图过程中出错:', e);
+      reject(e);
+    }
+  });
+}
+
+// 截取图片元素的函数
+function captureImage(imgElement, filename) {
+  return new Promise((resolve, reject) => {
+    try {
+      // 创建临时canvas
+      const canvas = document.createElement('canvas');
+      
+      // 设置合适的尺寸
+      let width = imgElement.naturalWidth;
+      let height = imgElement.naturalHeight;
+      
+      // 设置合适的尺寸（如果图片太大）
+      const maxDimension = 1920; // 最大宽度/高度限制
+      if (width > maxDimension || height > maxDimension) {
+        const ratio = Math.min(maxDimension / width, maxDimension / height);
+        width = width * ratio;
+        height = height * ratio;
+      }
+      
+      canvas.width = width;
+      canvas.height = height;
+      
+      // 绘制图片到canvas
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(imgElement, 0, 0, width, height);
+      
+      // 将canvas转换为Blob
+      canvas.toBlob(blob => {
+        // 创建下载链接
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename || (SCREENSHOT_FILENAME_PREFIX + Date.now() + '.jpg');
+        a.style.display = 'none';
+        document.body.appendChild(a);
+        a.click();
+        
+        // 清理
+        setTimeout(() => {
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+          resolve(true);
+        }, 100);
+      }, 'image/jpeg', 0.9);
+      
+    } catch (e) {
+      console.error('截图过程中出错:', e);
+      reject(e);
+    }
+  });
+}
+
+// 截取所有视频的函数
+async function captureAllVideos() {
+  const containers = document.querySelectorAll('.video-container');
+  
+  if (containers.length === 0) {
+    showToast('没有可截图的媒体文件', 'info');
+    return;
+  }
+  
+  showToast(`开始截图 ${containers.length} 个媒体文件...`, 'info');
+  
+  let captureCount = 0;
+  let errorCount = 0;
+  
+  // 创建一个时间戳作为文件夹标记
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+  
+  for (let i = 0; i < containers.length; i++) {
+    const container = containers[i];
+    try {
+      // 高亮当前容器
+      container.classList.add('capturing');
+      
+      // 检查是视频还是图片
+      const video = container.querySelector('video');
+      const img = container.querySelector('img.image-preview');
+      const filename = container.querySelector('.video-filename')?.textContent || '';
+      
+      // 构建文件名 (使用时间戳和原始文件名)
+      const screenshotFilename = `screenshot_${timestamp}_${i+1}_${filename.replace(/[<>:"/\\|?*]/g, '_')}.jpg`;
+      
+      if (video) {
+        // 视频容器
+        await captureVideo(video, screenshotFilename);
+        captureCount++;
+      } else if (img) {
+        // 图片容器
+        await captureImage(img, screenshotFilename);
+        captureCount++;
+      }
+      
+      // 移除高亮
+      container.classList.remove('capturing');
+      
+      // 短暂延迟，避免浏览器过载
+      await new Promise(resolve => setTimeout(resolve, 200));
+      
+    } catch (e) {
+      console.error(`截图第 ${i+1} 个媒体文件时出错:`, e);
+      container.classList.remove('capturing');
+      errorCount++;
+    }
+  }
+  
+  // 显示结果
+  if (errorCount === 0) {
+    showToast(`成功截图 ${captureCount} 个媒体文件`, 'success');
+  } else {
+    showToast(`截图完成: ${captureCount} 成功, ${errorCount} 失败`, 'warning');
+  }
 }

@@ -741,4 +741,82 @@ video {
     max-width: 100%;
     width: 100%;
   }
+}
+
+/* 截图按钮样式 */
+.screenshot-button {
+  background: #2C5282;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  margin-left: 12px;
+}
+
+.screenshot-button:hover {
+  background: #3182CE;
+}
+
+.screenshot-button:disabled {
+  background: #2a4a61;
+  cursor: not-allowed;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+/* 单个视频截图按钮 */
+.screenshot-video-button {
+  position: absolute;
+  top: 6px;
+  right: 40px; /* 位于删除按钮旁边 */
+  background: rgba(44, 82, 130, 0.8);
+  backdrop-filter: blur(80px);
+  border: none;
+  color: #fff;
+  padding: 3px 6px;
+  border-radius: 6px;
+  cursor: pointer;
+  z-index: 10;
+  transition: background-color 0.2s;
+  font-size: 0.9rem;
+}
+
+.screenshot-video-button:hover {
+  background: rgba(49, 130, 206, 0.8);
+}
+
+/* 截图时的高亮效果 */
+.video-container.capturing {
+  box-shadow: 0 0 0 3px rgba(49, 130, 206, 0.8);
+  animation: capture-pulse 0.5s infinite alternate;
+}
+
+@keyframes capture-pulse {
+  from { box-shadow: 0 0 0 3px rgba(49, 130, 206, 0.5); }
+  to { box-shadow: 0 0 0 3px rgba(49, 130, 206, 0.9); }
+}
+
+/* 暗黑模式样式 */
+/* 暗黑模式下的截图按钮 */
+.dark-mode .screenshot-button {
+  background: #3d5c81;
+}
+
+.dark-mode .screenshot-button:hover {
+  background: #4a6c96;
+}
+
+.dark-mode .screenshot-button:disabled {
+  background: #2e3c4e;
+}
+
+/* 暗黑模式下的单个视频截图按钮 */
+.dark-mode .screenshot-video-button {
+  background: rgba(61, 92, 129, 0.8);
+}
+
+.dark-mode .screenshot-video-button:hover {
+  background: rgba(74, 108, 150, 0.8);
 } 
