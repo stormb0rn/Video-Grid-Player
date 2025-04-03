@@ -161,7 +161,8 @@ video {
 }
 
 .video-info {
-  padding: 8px 12px;
+  padding: 8px;
+  overflow: hidden;
   color: #fff;
   background: #1F1F1F;
   position: relative;
@@ -396,4 +397,24 @@ video {
   100% {
     box-shadow: 0 0 0 2px #3b82f6;
   }
+}
+
+/* 路径标签样式 */
+.path-tag {
+  font-size: 12px;
+  background-color: #f3f4f6;
+  color: #4b5563;
+  padding: 2px 8px;
+  border-radius: 4px;
+  margin-bottom: 6px;
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dark-mode .path-tag {
+  background-color: #374151;
+  color: #d1d5db;
 } 

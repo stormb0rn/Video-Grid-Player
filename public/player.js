@@ -636,6 +636,22 @@ function createVideoElement(file) {
   const videoInfo = document.createElement('div');
   videoInfo.className = 'video-info';
   
+  // 添加层级路径标识，显示在文件名之前
+  if (file.fullPath) {
+    const folderPath = getFolderPath(file.fullPath);
+    if (folderPath && folderPath !== '/') {
+      // 创建视频所在目录层级标签
+      const pathTag = document.createElement('div');
+      pathTag.className = 'path-tag';
+      
+      // 简化路径显示，将根目录和多层路径处理成更友好的格式
+      const displayPath = formatDisplayPath(folderPath);
+      
+      pathTag.textContent = displayPath;
+      videoInfo.appendChild(pathTag);
+    }
+  }
+  
   const filename = document.createElement('div');
   filename.className = 'video-filename';
   filename.textContent = file.name;
@@ -645,7 +661,7 @@ function createVideoElement(file) {
   videoContainer.appendChild(videoWrapper);
   videoInfo.appendChild(filename);
   
-  // 添加路径显示
+  // 添加完整路径显示在文件名下方
   if (file.fullPath) {
     const pathElement = document.createElement('div');
     pathElement.className = 'video-path';
@@ -703,6 +719,22 @@ function createImageElement(file) {
   
   const imageInfo = document.createElement('div');
   imageInfo.className = 'video-info';
+  
+  // 添加层级路径标识，显示在文件名之前
+  if (file.fullPath) {
+    const folderPath = getFolderPath(file.fullPath);
+    if (folderPath && folderPath !== '/') {
+      // 创建图片所在目录层级标签
+      const pathTag = document.createElement('div');
+      pathTag.className = 'path-tag';
+      
+      // 简化路径显示，将根目录和多层路径处理成更友好的格式
+      const displayPath = formatDisplayPath(folderPath);
+      
+      pathTag.textContent = displayPath;
+      imageInfo.appendChild(pathTag);
+    }
+  }
   
   const filename = document.createElement('div');
   filename.className = 'video-filename';
@@ -833,4 +865,38 @@ function buildFolderTreeFromFiles(files) {
   
   // 渲染树结构
   renderFileTree(fileTreeStructure);
+}
+
+// 获取文件的目录路径
+function getFolderPath(fullPath) {
+  if (!fullPath) return '';
+  const pathParts = fullPath.split('/');
+  pathParts.pop(); // 移除文件名
+  return pathParts.join('/') || '/';
+}
+
+// 格式化路径显示
+function formatDisplayPath(path) {
+  if (!path || path === '/') return '';
+  
+  // 移除开头的斜杠
+  const cleanPath = path.startsWith('/') ? path.substring(1) : path;
+  
+  // 如果路径非常长，缩短显示
+  if (cleanPath.length > 30) {
+    const parts = cleanPath.split('/');
+    
+    if (parts.length <= 2) {
+      // 只有一两级目录时显示全部
+      return `📂 ${cleanPath}`;
+    } else {
+      // 多级目录时显示首尾，中间用...代替
+      const firstDir = parts[0];
+      const lastDir = parts[parts.length - 1];
+      return `📂 ${firstDir}/.../${lastDir}`;
+    }
+  }
+  
+  // 路径不长时直接显示
+  return `📂 ${cleanPath}`;
 }
