@@ -215,7 +215,7 @@ function handleFolderSelect() {
 }
 
 function updateVideoCount() {
-  // 统计所有媒体容器的数量，包括在文件夹组内的媒体
+  // 统计所有媒体容器的数量，包括在文件夹组和文件夹行内的媒体
   let count = 0;
   
   // 首先统计直接在视频网格中的媒体容器
@@ -225,8 +225,19 @@ function updateVideoCount() {
   // 然后统计在文件夹组内的媒体容器
   const folderGroups = videoGrid.querySelectorAll('.folder-group');
   folderGroups.forEach(group => {
-    const groupContainers = group.querySelectorAll('.video-container').length;
-    count += groupContainers;
+    // 获取文件夹行内的媒体容器
+    const rows = group.querySelectorAll('.folder-row');
+    if (rows.length > 0) {
+      // 如果有行容器，从行容器中统计媒体容器
+      rows.forEach(row => {
+        const rowContainers = row.querySelectorAll('.video-container').length;
+        count += rowContainers;
+      });
+    } else {
+      // 如果没有行容器，直接统计文件夹组内的媒体容器
+      const groupContainers = group.querySelectorAll(':scope > .folder-group-items > .video-container').length;
+      count += groupContainers;
+    }
   });
   
   // 更新计数显示
@@ -708,19 +719,14 @@ function processVideoFiles(files) {
       folderHeader.appendChild(folderName);
       folderGroup.appendChild(folderHeader);
       
-      // 创建文件夹内容容器
+      // 创建文件夹内容容器 - 使用flex布局以支持换行
       const folderItems = document.createElement('div');
       folderItems.className = 'folder-group-items';
       folderGroup.appendChild(folderItems);
       
       // 将文件添加到对应的文件夹组
-      folderFiles.forEach(file => {
-        if (SUPPORTED_TYPES.video.some(type => file.type.startsWith(type))) {
-          createVideoElement(file, folderItems);
-        } else if (SUPPORTED_TYPES.image.some(type => file.type === type)) {
-          createImageElement(file, folderItems);
-        }
-      });
+      // 使用自定义的处理函数，确保不同路径的视频在不同行
+      organizeFilesByPath(folderFiles, folderItems);
       
       // 将文件夹组添加到视频网格中
       videoGrid.appendChild(folderGroup);
@@ -740,6 +746,78 @@ function processVideoFiles(files) {
   // 更新视频计数和下载按钮状态
   updateVideoCount();
   updateDownloadButtonState();
+}
+
+// 按子文件夹路径组织文件并创建视频元素
+function organizeFilesByPath(files, parentElement) {
+  // 按子文件夹分组
+  const filesBySubPath = {};
+  
+  files.forEach(file => {
+    // 提取子路径（更深层次的文件夹）
+    let subPath = '';
+    if (file.fullPath) {
+      const fullPathParts = file.fullPath.split('/');
+      // 移除文件名
+      fullPathParts.pop();
+      
+      // 如果路径有多级，获取最深的子路径
+      if (fullPathParts.length > 0) {
+        subPath = fullPathParts.join('/');
+      }
+    }
+    
+    // 如果该子路径不存在于分组中，创建一个新数组
+    if (!filesBySubPath[subPath]) {
+      filesBySubPath[subPath] = [];
+    }
+    
+    // 将文件添加到对应的子路径分组
+    filesBySubPath[subPath].push(file);
+  });
+  
+  // 按子路径排序
+  const sortedSubPaths = Object.keys(filesBySubPath).sort();
+  
+  // 为每个子路径创建一个行容器
+  sortedSubPaths.forEach(subPath => {
+    const rowFiles = filesBySubPath[subPath];
+    
+    // 创建子路径行容器
+    const rowContainer = document.createElement('div');
+    rowContainer.className = 'folder-row';
+    
+    // 如果有子路径，显示子路径名称
+    if (subPath && subPath !== '/') {
+      const pathParts = subPath.split('/');
+      const deepestPart = pathParts[pathParts.length - 1];
+      
+      // 显示深层子文件夹标签
+      if (deepestPart && pathParts.length > 1) {
+        const subPathLabel = document.createElement('div');
+        subPathLabel.className = 'sub-path-label';
+        subPathLabel.textContent = `📁 ${deepestPart}`;
+        
+        // 添加颜色标识
+        const folderLevel = calculateFolderLevel(subPath);
+        subPathLabel.setAttribute('data-folder-level', folderLevel.toString());
+        
+        rowContainer.appendChild(subPathLabel);
+      }
+    }
+    
+    // 将文件添加到子路径行
+    rowFiles.forEach(file => {
+      if (SUPPORTED_TYPES.video.some(type => file.type.startsWith(type))) {
+        createVideoElement(file, rowContainer);
+      } else if (SUPPORTED_TYPES.image.some(type => file.type === type)) {
+        createImageElement(file, rowContainer);
+      }
+    });
+    
+    // 将行容器添加到父元素
+    parentElement.appendChild(rowContainer);
+  });
 }
 
 function createVideoElement(file, parentContainer) {
@@ -945,13 +1023,23 @@ downloadAllButton.addEventListener('click', handleDownloadAll);
 updateDownloadButtonState();
 
 function updateDownloadButtonState() {
-  // 检查是否有任何媒体文件（包括在文件夹组内的）
+  // 检查是否有任何媒体文件（包括在文件夹组和文件夹行内的）
   const directContainers = videoGrid.querySelectorAll(':scope > .video-container').length;
   let folderGroupsContainers = 0;
   
   const folderGroups = videoGrid.querySelectorAll('.folder-group');
   folderGroups.forEach(group => {
-    folderGroupsContainers += group.querySelectorAll('.video-container').length;
+    // 获取文件夹行内的媒体容器
+    const rows = group.querySelectorAll('.folder-row');
+    if (rows.length > 0) {
+      // 如果有行容器，从行容器中统计媒体容器
+      rows.forEach(row => {
+        folderGroupsContainers += row.querySelectorAll('.video-container').length;
+      });
+    } else {
+      // 如果没有行容器，直接统计文件夹组内的媒体容器
+      folderGroupsContainers += group.querySelectorAll(':scope > .folder-group-items > .video-container').length;
+    }
   });
   
   const hasVideos = directContainers > 0 || folderGroupsContainers > 0;
@@ -959,9 +1047,33 @@ function updateDownloadButtonState() {
 }
 
 function handleDownloadAll() {
-  const videos = videoGrid.querySelectorAll('.video-container');
+  // 获取所有视频容器，包括在文件夹组内的
+  let allContainers = [];
   
-  videos.forEach((container, index) => {
+  // 首先获取直接在视频网格中的媒体容器
+  const directContainers = Array.from(videoGrid.querySelectorAll(':scope > .video-container'));
+  allContainers = allContainers.concat(directContainers);
+  
+  // 然后获取在文件夹组内的媒体容器，包括文件夹行
+  const folderGroups = videoGrid.querySelectorAll('.folder-group');
+  folderGroups.forEach(group => {
+    // 获取文件夹行内的媒体容器
+    const rows = group.querySelectorAll('.folder-row');
+    if (rows.length > 0) {
+      // 如果有行容器，从行容器中获取媒体容器
+      rows.forEach(row => {
+        const rowContainers = Array.from(row.querySelectorAll('.video-container'));
+        allContainers = allContainers.concat(rowContainers);
+      });
+    } else {
+      // 如果没有行容器，直接获取文件夹组内的媒体容器
+      const groupContainers = Array.from(group.querySelectorAll(':scope > .folder-group-items > .video-container'));
+      allContainers = allContainers.concat(groupContainers);
+    }
+  });
+  
+  // 处理每个容器以触发下载
+  allContainers.forEach((container, index) => {
     const video = container.querySelector('video');
     const img = container.querySelector('img');
     const filename = container.querySelector('.video-filename').textContent;

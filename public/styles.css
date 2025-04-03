@@ -153,10 +153,38 @@ h1 {
 }
 
 .folder-group-items {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+}
+
+/* 文件夹行样式 - 使不同文件夹路径的视频在不同行显示 */
+.folder-row {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: 16px;
   width: 100%;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  border-bottom: 1px dashed rgba(255, 255, 255, 0.05);
+  position: relative;
+}
+
+.folder-row:last-child {
+  border-bottom: none;
+}
+
+/* 子路径标签样式 */
+.sub-path-label {
+  grid-column: 1 / -1;
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 8px;
+  padding: 4px 8px;
+  display: inline-block;
+  border-radius: 4px;
+  font-weight: 500;
 }
 
 .dark-mode .folder-group {
