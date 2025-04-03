@@ -202,6 +202,7 @@ h1 {
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: 16px;
   width: 100%;
+  min-width: 100%;
 }
 
 /* 应用路径标签颜色样式 */

@@ -678,6 +678,10 @@ function processVideoFiles(files) {
     // 创建基本容器
     const filesGrid = document.createElement('div');
     filesGrid.className = 'files-grid';
+    filesGrid.style.display = 'grid';
+    filesGrid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(240px, 1fr))';
+    filesGrid.style.gap = '16px';
+    filesGrid.style.width = '100%';
     
     // 按名称排序文件
     filesToProcess.sort((a, b) => a.name.localeCompare(b.name)).forEach(file => {
@@ -690,6 +694,7 @@ function processVideoFiles(files) {
     
     // 添加到视频网格
     videoGrid.appendChild(filesGrid);
+    videoGrid.style.display = 'block';
     
     // 显示成功消息
     if (filesToProcess.length > 1) {
@@ -1156,6 +1161,10 @@ function filterVideosByFolder(folderPath) {
     // 创建单一网格容器
     const filesGrid = document.createElement('div');
     filesGrid.className = 'files-grid';
+    filesGrid.style.display = 'grid';
+    filesGrid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(240px, 1fr))';
+    filesGrid.style.gap = '16px';
+    filesGrid.style.width = '100%';
     
     // 对过滤后的容器按文件名排序
     filteredContainers.sort((a, b) => {
@@ -1174,6 +1183,9 @@ function filterVideosByFolder(folderPath) {
     
     // 将网格添加到视频容器
     videoGrid.appendChild(filesGrid);
+    
+    // 确保视频网格样式正确
+    videoGrid.style.display = 'block';
     
     showToast(`已过滤: 显示 ${filteredContainers.length} 个媒体文件`, 'success');
   }
@@ -1212,6 +1224,10 @@ function resetFilter() {
   // 创建单一网格容器
   const filesGrid = document.createElement('div');
   filesGrid.className = 'files-grid';
+  filesGrid.style.display = 'grid';
+  filesGrid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(240px, 1fr))';
+  filesGrid.style.gap = '16px';
+  filesGrid.style.width = '100%';
   
   // 获取原始布局中的所有容器
   const originalContainers = Array.from(window.originalVideoLayout.querySelectorAll('.video-container, .image-container'));
@@ -1233,6 +1249,9 @@ function resetFilter() {
   
   // 将格子网格添加到视频网格
   videoGrid.appendChild(filesGrid);
+  
+  // 确保视频网格样式正确
+  videoGrid.style.display = 'block';
   
   // 重置过滤状态
   currentFilterPath = null;
