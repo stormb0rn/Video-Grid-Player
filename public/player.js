@@ -672,7 +672,10 @@ function processVideoFiles(files) {
       
       // 显示文件夹路径名称（如果有）
       if (folderPath && folderPath !== '/') {
-        folderName.textContent = folderPath.startsWith('/') ? folderPath.substring(1) : folderPath;
+        // 获取只有最后一级的文件夹名称
+        const pathParts = folderPath.split('/');
+        const lastFolderName = pathParts[pathParts.length - 1];
+        folderName.textContent = lastFolderName;
         
         // 添加颜色标识
         const folderLevel = calculateFolderLevel(folderPath);
@@ -819,8 +822,15 @@ function createVideoElement(file, parentContainer) {
     // 显示父目录路径，不包括文件名
     const pathParts = file.fullPath.split('/');
     pathParts.pop(); // 移除文件名
-    const directoryPath = pathParts.join('/') || '/';
-    pathElement.textContent = directoryPath;
+    
+    if (pathParts.length > 0) {
+      // 只显示最后一级文件夹名称
+      const lastFolderName = pathParts[pathParts.length - 1];
+      pathElement.textContent = lastFolderName || '/';
+    } else {
+      pathElement.textContent = '/';
+    }
+    
     videoInfo.appendChild(pathElement);
   }
   
@@ -910,8 +920,15 @@ function createImageElement(file, parentContainer) {
     // 显示父目录路径，不包括文件名
     const pathParts = file.fullPath.split('/');
     pathParts.pop(); // 移除文件名
-    const directoryPath = pathParts.join('/') || '/';
-    pathElement.textContent = directoryPath;
+    
+    if (pathParts.length > 0) {
+      // 只显示最后一级文件夹名称
+      const lastFolderName = pathParts[pathParts.length - 1];
+      pathElement.textContent = lastFolderName || '/';
+    } else {
+      pathElement.textContent = '/';
+    }
+    
     imageInfo.appendChild(pathElement);
   }
   
@@ -1048,24 +1065,16 @@ function formatDisplayPath(path) {
   
   // 移除开头的斜杠
   const cleanPath = path.startsWith('/') ? path.substring(1) : path;
+  const parts = cleanPath.split('/');
   
-  // 如果路径非常长，缩短显示
-  if (cleanPath.length > 30) {
-    const parts = cleanPath.split('/');
-    
-    if (parts.length <= 2) {
-      // 只有一两级目录时显示全部
-      return `📂 ${cleanPath}`;
-    } else {
-      // 多级目录时显示首尾，中间用...代替
-      const firstDir = parts[0];
-      const lastDir = parts[parts.length - 1];
-      return `📂 ${firstDir}/.../${lastDir}`;
-    }
+  // 只显示最后一级文件夹名称
+  if (parts.length >= 1) {
+    const lastDir = parts[parts.length - 1];
+    return `📁 ${lastDir}`;
   }
   
-  // 路径不长时直接显示
-  return `📂 ${cleanPath}`;
+  // 如果没有文件夹层级，返回空字符串
+  return '';
 }
 
 // 计算文件夹级别以应用不同颜色
