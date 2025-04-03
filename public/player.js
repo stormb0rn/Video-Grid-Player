@@ -48,6 +48,9 @@ const SUPPORTED_TYPES = {
   image: ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml']
 };
 
+// 用于存储文件树结构
+let fileTreeStructure = null;
+
 // Ensure DOM elements are loaded
 document.addEventListener('DOMContentLoaded', function() {
   setStatus('Page loaded, waiting for media files...');
@@ -153,6 +156,17 @@ function handleFolderSelect() {
   fileInput.addEventListener('change', (e) => {
     const files = Array.from(e.target.files);
     setStatus(`Detected ${files.length} files, filtering media files...`);
+    
+    // 为每个文件创建相对路径
+    files.forEach(file => {
+      // webkitRelativePath 格式为 "folder/subfolder/file.ext"
+      if (file.webkitRelativePath) {
+        file.fullPath = '/' + file.webkitRelativePath;
+      }
+    });
+    
+    // 构建目录树结构
+    buildFolderTreeFromFiles(files);
     
     // Filter media files
     const mediaFiles = files.filter(file => {
@@ -288,53 +302,95 @@ function processDroppedItems(items) {
   
   // Process all entries (files and folders)
   if (entries.length > 0) {
-    traverseFileTree(entries);
+    // 使用新的处理方法，构建文件树结构
+    buildFileTreeAndTraverse(entries);
   } else {
     setStatus('No valid entries found', true);
     showToast('No valid entries found', 'error');
   }
 }
 
-// Traverse and process file tree
-function traverseFileTree(entries) {
-  // Array to collect all files
-  const allFiles = [];
-  let pendingDirectories = 0;
-  let processedFiles = 0;
+// 构建文件树并处理文件
+function buildFileTreeAndTraverse(entries) {
+  // 重置文件树结构
+  fileTreeStructure = {
+    name: 'root',
+    type: 'directory',
+    children: [],
+    expanded: true,
+    path: ''
+  };
   
-  // Process entry (file or directory)
-  function processEntry(entry) {
+  // 跟踪处理中的目录和文件
+  let pendingDirectories = 0;
+  let processedEntries = 0;
+  const allFiles = [];
+  
+  // 处理单个文件或目录
+  function processEntry(entry, parentNode) {
     if (entry.isFile) {
-      // Handle file entry
+      // 处理文件
       entry.file(file => {
-        allFiles.push(file);
-        processedFiles++;
+        // 将完整路径添加到文件中
+        file.fullPath = entry.fullPath || ('/' + file.name);
+        
+        // 为文件创建树节点
+        const fileNode = {
+          name: file.name,
+          type: 'file',
+          isMedia: SUPPORTED_TYPES.video.some(type => file.type.startsWith(type)) || 
+                   SUPPORTED_TYPES.image.some(type => file.type === type),
+          fileObj: file,
+          path: file.fullPath
+        };
+        
+        // 添加到父节点
+        parentNode.children.push(fileNode);
+        
+        // 如果是媒体文件，添加到处理列表
+        if (fileNode.isMedia) {
+          allFiles.push(file);
+        }
+        
+        processedEntries++;
         checkCompletion();
       }, error => {
         console.error('Error getting file:', error);
-        processedFiles++;
+        processedEntries++;
         checkCompletion();
       });
     } else if (entry.isDirectory) {
       pendingDirectories++;
       
-      // Get directory reader
+      // 为目录创建树节点
+      const dirNode = {
+        name: entry.name,
+        type: 'directory',
+        children: [],
+        expanded: true,
+        path: entry.fullPath || ('/' + entry.name)
+      };
+      
+      // 添加到父节点
+      parentNode.children.push(dirNode);
+      
+      // 获取目录读取器
       const reader = entry.createReader();
-      readDirectory(reader);
+      readDirectory(reader, dirNode);
     }
   }
   
-  // Read directory contents
-  function readDirectory(reader) {
+  // 读取目录内容
+  function readDirectory(reader, dirNode) {
     reader.readEntries(entries => {
       if (entries.length > 0) {
-        // Process each entry
-        entries.forEach(processEntry);
+        // 处理每个条目
+        entries.forEach(entry => processEntry(entry, dirNode));
         
-        // Continue reading (directories might return partial results)
-        readDirectory(reader);
+        // 继续读取（目录可能返回部分结果）
+        readDirectory(reader, dirNode);
       } else {
-        // No more entries in this directory
+        // 该目录中没有更多条目
         pendingDirectories--;
         checkCompletion();
       }
@@ -345,112 +401,157 @@ function traverseFileTree(entries) {
     });
   }
   
-  // Check if all processing is complete
+  // 检查所有处理是否完成
   function checkCompletion() {
-    if (pendingDirectories === 0 && entries.length === processedFiles) {
-      // All directories and files have been processed
-      setStatus(`Processing ${allFiles.length} collected files...`);
+    if (pendingDirectories === 0 && entries.length === processedEntries) {
+      // 所有目录和文件都已处理完毕
+      setStatus(`处理 ${allFiles.length} 个媒体文件...`);
+      
+      // 渲染文件树结构
+      renderFileTree(fileTreeStructure);
+      
+      // 处理所有收集到的媒体文件
       processVideoFiles(allFiles);
     }
   }
   
-  // Start processing all entries
-  entries.forEach(processEntry);
+  // 开始处理所有条目
+  entries.forEach(entry => processEntry(entry, fileTreeStructure));
 }
 
-// Handle dropped items (possibly containing folders) - Legacy version kept for reference
-async function handleDropItems(items) {
-  const allFiles = [];
-  
-  // Process all items recursively
-  const promises = items.map(async (item) => {
-    if (item.kind === 'file') {
-      const entry = item.webkitGetAsEntry ? item.webkitGetAsEntry() : (item.getAsEntry ? item.getAsEntry() : null);
-      
-      if (entry) {
-        // If it's a folder
-        if (entry.isDirectory) {
-          const dirFiles = await readDirectoryEntries(entry);
-          allFiles.push(...dirFiles);
-        }
-        // If it's a file
-        else if (entry.isFile) {
-          const file = await getFileFromEntry(entry);
-          if (file) allFiles.push(file);
-        }
-      } else {
-        // If entry API not supported, get file directly
-        const file = item.getAsFile();
-        if (file) allFiles.push(file);
-      }
-    }
-  });
-  
-  try {
-    // Wait for all file processing to complete
-    await Promise.all(promises);
+// 渲染文件树到页面
+function renderFileTree(rootNode) {
+  // 创建文件树容器（如果不存在）
+  let treeContainer = document.getElementById('fileTreeContainer');
+  if (!treeContainer) {
+    treeContainer = document.createElement('div');
+    treeContainer.id = 'fileTreeContainer';
+    treeContainer.className = 'file-tree-container';
     
-    // Process all collected files
-    processVideoFiles(allFiles);
-  } catch (error) {
-    console.error('Error processing dropped items:', error);
-    // Fallback handling: if advanced API fails, try basic file processing
-    const files = items.map(item => item.getAsFile()).filter(file => file !== null);
-    processVideoFiles(files);
+    // 添加树视图标题
+    const treeTitle = document.createElement('h2');
+    treeTitle.textContent = '文件目录结构';
+    treeContainer.appendChild(treeTitle);
+    
+    // 将树容器添加到页面
+    document.querySelector('.drop-zone').after(treeContainer);
+  } else {
+    // 清空现有树
+    treeContainer.innerHTML = '';
+    const treeTitle = document.createElement('h2');
+    treeTitle.textContent = '文件目录结构';
+    treeContainer.appendChild(treeTitle);
   }
-}
-
-// Read entries from a directory
-async function readDirectoryEntries(dirEntry) {
-  const files = [];
   
-  // Read directory contents
-  const readEntries = (dirReader) => {
-    return new Promise((resolve) => {
-      dirReader.readEntries(async (entries) => {
-        if (entries.length === 0) {
-          resolve();
-          return;
-        }
-        
-        // Process each entry
-        const entryPromises = entries.map(async (entry) => {
-          if (entry.isDirectory) {
-            // Recursively read subdirectories
-            const subFiles = await readDirectoryEntries(entry);
-            files.push(...subFiles);
-          } else if (entry.isFile) {
-            // Add file
-            const file = await getFileFromEntry(entry);
-            if (file) files.push(file);
-          }
-        });
-        
-        await Promise.all(entryPromises);
-        
-        // Recursively read more entries (directory might not be read completely in one go)
-        await readEntries(dirReader);
-      }, (error) => {
-        console.error('Error reading directory:', error);
-        resolve();
+  // 创建并添加树结构
+  const treeRoot = document.createElement('div');
+  treeRoot.className = 'file-tree';
+  treeContainer.appendChild(treeRoot);
+  
+  // 递归构建树
+  function buildTreeUI(node, parentElement) {
+    if (node.type === 'directory') {
+      // 创建目录节点
+      const folderItem = document.createElement('div');
+      folderItem.className = 'tree-item folder' + (node.expanded ? ' expanded' : '');
+      
+      // 创建目录标题
+      const folderTitle = document.createElement('div');
+      folderTitle.className = 'folder-title';
+      
+      // 创建展开/折叠图标
+      const expandIcon = document.createElement('span');
+      expandIcon.className = 'expand-icon';
+      expandIcon.textContent = node.expanded ? '▼' : '►';
+      
+      // 创建目录图标和名称
+      const folderIcon = document.createElement('span');
+      folderIcon.className = 'folder-icon';
+      folderIcon.textContent = '📁';
+      
+      const folderName = document.createElement('span');
+      folderName.className = 'folder-name';
+      folderName.textContent = node.name;
+      
+      // 组装目录标题
+      folderTitle.appendChild(expandIcon);
+      folderTitle.appendChild(folderIcon);
+      folderTitle.appendChild(folderName);
+      folderItem.appendChild(folderTitle);
+      
+      // 创建子项容器
+      const folderContents = document.createElement('div');
+      folderContents.className = 'folder-contents';
+      folderItem.appendChild(folderContents);
+      
+      // 添加点击事件以展开/折叠
+      folderTitle.addEventListener('click', () => {
+        node.expanded = !node.expanded;
+        folderItem.classList.toggle('expanded');
+        expandIcon.textContent = node.expanded ? '▼' : '►';
       });
-    });
-  };
+      
+      // 添加到父元素
+      parentElement.appendChild(folderItem);
+      
+      // 递归处理子项
+      if (node.children && node.children.length > 0) {
+        node.children.forEach(child => buildTreeUI(child, folderContents));
+      }
+    } else if (node.type === 'file' && node.isMedia) {
+      // 创建文件节点（仅显示媒体文件）
+      const fileItem = document.createElement('div');
+      fileItem.className = 'tree-item file';
+      
+      // 创建文件图标和名称
+      const fileIcon = document.createElement('span');
+      fileIcon.className = 'file-icon';
+      if (node.fileObj.type.startsWith('video/')) {
+        fileIcon.textContent = '🎬';
+      } else {
+        fileIcon.textContent = '🖼️';
+      }
+      
+      const fileName = document.createElement('span');
+      fileName.className = 'file-name';
+      fileName.textContent = node.name;
+      
+      // 组装文件项
+      fileItem.appendChild(fileIcon);
+      fileItem.appendChild(fileName);
+      
+      // 添加点击事件，跳转到相应的视频
+      fileItem.addEventListener('click', () => {
+        scrollToMediaFile(node.path);
+      });
+      
+      // 添加到父元素
+      parentElement.appendChild(fileItem);
+    }
+  }
   
-  await readEntries(dirEntry.createReader());
-  return files;
+  // 对根目录的每个子项构建UI（跳过根目录自身）
+  rootNode.children.forEach(child => buildTreeUI(child, treeRoot));
 }
 
-// Get File object from file entry
-function getFileFromEntry(fileEntry) {
-  return new Promise((resolve) => {
-    fileEntry.file((file) => {
-      resolve(file);
-    }, (error) => {
-      console.error('Error getting file:', error);
-      resolve(null);
-    });
-  });
+// 滚动到指定路径的媒体文件
+function scrollToMediaFile(path) {
+  if (!path) return;
+  
+  // 查找具有匹配路径的视频容器
+  const containers = Array.from(videoGrid.querySelectorAll('.video-container'));
+  const targetContainer = containers.find(container => container.dataset.path === path);
+  
+  if (targetContainer) {
+    // 滚动到目标容器
+    targetContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    
+    // 添加高亮效果
+    targetContainer.classList.add('highlight');
+    setTimeout(() => {
+      targetContainer.classList.remove('highlight');
+    }, 2000);
+  }
 }
 
 // Process video files
@@ -498,6 +599,11 @@ function createVideoElement(file) {
   const videoContainer = document.createElement('div');
   videoContainer.className = 'video-container';
   
+  // 添加文件路径数据属性（如果有）
+  if (file.fullPath) {
+    videoContainer.dataset.path = file.fullPath;
+  }
+  
   // Add mouse enter/leave events for audio control
   videoContainer.addEventListener('mouseenter', () => {
     video.muted = false;
@@ -538,6 +644,19 @@ function createVideoElement(file) {
   videoContainer.appendChild(removeButton);
   videoContainer.appendChild(videoWrapper);
   videoInfo.appendChild(filename);
+  
+  // 添加路径显示
+  if (file.fullPath) {
+    const pathElement = document.createElement('div');
+    pathElement.className = 'video-path';
+    // 显示父目录路径，不包括文件名
+    const pathParts = file.fullPath.split('/');
+    pathParts.pop(); // 移除文件名
+    const directoryPath = pathParts.join('/') || '/';
+    pathElement.textContent = directoryPath;
+    videoInfo.appendChild(pathElement);
+  }
+  
   videoContainer.appendChild(videoInfo);
   videoGrid.appendChild(videoContainer);
   
@@ -559,6 +678,11 @@ function createVideoElement(file) {
 function createImageElement(file) {
   const imageContainer = document.createElement('div');
   imageContainer.className = 'video-container';
+  
+  // 添加文件路径数据属性（如果有）
+  if (file.fullPath) {
+    imageContainer.dataset.path = file.fullPath;
+  }
   
   const imageWrapper = document.createElement('div');
   imageWrapper.className = 'video-wrapper';
@@ -588,6 +712,19 @@ function createImageElement(file) {
   imageContainer.appendChild(removeButton);
   imageContainer.appendChild(imageWrapper);
   imageInfo.appendChild(filename);
+  
+  // 添加路径显示
+  if (file.fullPath) {
+    const pathElement = document.createElement('div');
+    pathElement.className = 'video-path';
+    // 显示父目录路径，不包括文件名
+    const pathParts = file.fullPath.split('/');
+    pathParts.pop(); // 移除文件名
+    const directoryPath = pathParts.join('/') || '/';
+    pathElement.textContent = directoryPath;
+    imageInfo.appendChild(pathElement);
+  }
+  
   imageContainer.appendChild(imageInfo);
   videoGrid.appendChild(imageContainer);
   
@@ -623,4 +760,77 @@ function handleDownloadAll() {
       a.click();
     }, index * 500); // 500ms delay between each download
   });
+}
+
+// 从选择的文件构建目录树
+function buildFolderTreeFromFiles(files) {
+  // 创建根节点
+  fileTreeStructure = {
+    name: 'root',
+    type: 'directory',
+    children: [],
+    expanded: true,
+    path: ''
+  };
+  
+  // 处理每个文件
+  files.forEach(file => {
+    if (!file.webkitRelativePath) return;
+    
+    // 分割路径
+    const pathParts = file.webkitRelativePath.split('/');
+    let currentNode = fileTreeStructure;
+    
+    // 遍历路径的每一部分（除了最后一个，它是文件名）
+    for (let i = 0; i < pathParts.length - 1; i++) {
+      const partName = pathParts[i];
+      
+      // 查找现有的目录节点
+      let found = false;
+      for (let j = 0; j < currentNode.children.length; j++) {
+        if (currentNode.children[j].type === 'directory' && currentNode.children[j].name === partName) {
+          currentNode = currentNode.children[j];
+          found = true;
+          break;
+        }
+      }
+      
+      // 如果目录不存在，创建它
+      if (!found) {
+        // 构建到此级别的路径
+        let path = '/';
+        for (let k = 0; k <= i; k++) {
+          path += pathParts[k] + (k < i ? '/' : '');
+        }
+        
+        const newDir = {
+          name: partName,
+          type: 'directory',
+          children: [],
+          expanded: true,
+          path: path
+        };
+        currentNode.children.push(newDir);
+        currentNode = newDir;
+      }
+    }
+    
+    // 添加文件节点
+    const isMedia = SUPPORTED_TYPES.video.some(type => file.type.startsWith(type)) || 
+                    SUPPORTED_TYPES.image.some(type => file.type === type);
+    
+    if (isMedia) {
+      const fileNode = {
+        name: pathParts[pathParts.length - 1],
+        type: 'file',
+        isMedia: true,
+        fileObj: file,
+        path: '/' + file.webkitRelativePath
+      };
+      currentNode.children.push(fileNode);
+    }
+  });
+  
+  // 渲染树结构
+  renderFileTree(fileTreeStructure);
 }

@@ -164,12 +164,22 @@ video {
   padding: 8px 12px;
   color: #fff;
   background: #1F1F1F;
+  position: relative;
 }
 
 .video-filename {
   font-size: 0.85rem;
   color: rgba(255, 255, 255, 0.6);
   word-break: break-word;
+}
+
+.video-path {
+  font-size: 11px;
+  color: #6b7280;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 2px;
 }
 
 .remove-video {
@@ -271,4 +281,119 @@ video {
   margin-bottom: 8px;
   color: #374151;
   line-height: 1.5;
+}
+
+/* 文件树样式 */
+.file-tree-container {
+  margin: 20px auto;
+  max-width: 1200px;
+  padding: 15px;
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.file-tree-container h2 {
+  margin-top: 0;
+  margin-bottom: 15px;
+  font-size: 1.3rem;
+  color: #374151;
+}
+
+.file-tree {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #374151;
+}
+
+.tree-item {
+  margin: 2px 0;
+}
+
+.tree-item.folder {
+  margin-bottom: 5px;
+}
+
+.folder-title {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  padding: 5px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.folder-title:hover {
+  background-color: #f3f4f6;
+}
+
+.folder-contents {
+  margin-left: 20px;
+  display: none;
+  border-left: 1px dotted #d1d5db;
+  padding-left: 12px;
+}
+
+.folder.expanded > .folder-contents {
+  display: block;
+}
+
+.expand-icon {
+  width: 20px;
+  display: inline-block;
+  text-align: center;
+  color: #6b7280;
+  font-size: 10px;
+}
+
+.folder-icon, .file-icon {
+  margin-right: 8px;
+}
+
+.folder-name, .file-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 500px;
+}
+
+.tree-item.file {
+  display: flex;
+  align-items: center;
+  padding: 4px 5px;
+  border-radius: 4px;
+}
+
+.tree-item.file:hover {
+  background-color: #f3f4f6;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+  .file-tree-container {
+    padding: 10px;
+  }
+  
+  .folder-name, .file-name {
+    max-width: 200px;
+  }
+}
+
+/* 视频容器高亮效果 */
+.video-container.highlight {
+  animation: highlight-pulse 2s ease-in-out;
+  box-shadow: 0 0 0 2px #3b82f6;
+}
+
+@keyframes highlight-pulse {
+  0% {
+    box-shadow: 0 0 0 2px #3b82f6;
+  }
+  50% {
+    box-shadow: 0 0 0 4px #3b82f6;
+  }
+  100% {
+    box-shadow: 0 0 0 2px #3b82f6;
+  }
 } 
