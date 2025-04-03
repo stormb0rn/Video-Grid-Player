@@ -795,8 +795,11 @@ function createVideoElement(file, parentContainer) {
   videoContainer.appendChild(videoInfo);
   container.appendChild(videoContainer);
   
-  updateVideoCount();
-  updateDownloadButtonState();
+  // 更新视频计数，但不重复调用，让函数的调用者决定是否更新
+  if (container === videoGrid) {
+    updateVideoCount();
+    updateDownloadButtonState();
+  }
   
   // Clean up object URL when video is removed from DOM
   video.addEventListener('loadedmetadata', () => {
@@ -808,6 +811,8 @@ function createVideoElement(file, parentContainer) {
       video.style.width = '100%';
     }
   });
+  
+  return videoContainer;
 }
 
 function createImageElement(file, parentContainer) {
@@ -886,8 +891,13 @@ function createImageElement(file, parentContainer) {
   imageContainer.appendChild(imageInfo);
   container.appendChild(imageContainer);
   
-  updateVideoCount();
-  updateDownloadButtonState();
+  // 更新视频计数，但不重复调用，让函数的调用者决定是否更新
+  if (container === videoGrid) {
+    updateVideoCount();
+    updateDownloadButtonState();
+  }
+  
+  return imageContainer;
 }
 
 // Initialize video count
@@ -1168,7 +1178,7 @@ function filterVideosByFolder(folderPath) {
     showToast(`已过滤: 显示 ${filteredContainers.length} 个媒体文件`, 'success');
   }
   
-  // 更新视频计数和下载按钮状态
+  // 在处理后更新一次视频计数
   updateVideoCount();
   updateDownloadButtonState();
 }
@@ -1235,50 +1245,11 @@ function resetFilter() {
   console.log('过滤器已重置');
 }
 
-// 为恢复的容器重新添加事件监听器
-function attachEventListenersToContainers() {
-  const containers = document.querySelectorAll('.video-container');
-  containers.forEach(container => {
-    const video = container.querySelector('video');
-    const removeButton = container.querySelector('.remove-video');
-    
-    if (video) {
-      // 添加鼠标事件
-      container.addEventListener('mouseenter', () => {
-        video.muted = false;
-      });
-      
-      container.addEventListener('mouseleave', () => {
-        video.muted = true;
-      });
-    }
-    
-    if (removeButton) {
-      // 添加删除按钮事件
-      removeButton.addEventListener('click', () => {
-        container.remove();
-        if (video) {
-          URL.revokeObjectURL(video.src);
-        } else {
-          const img = container.querySelector('img');
-          if (img) {
-            URL.revokeObjectURL(img.src);
-          }
-        }
-        updateVideoCount();
-        updateDownloadButtonState();
-      });
-    }
-  });
-}
-
-// 附加事件监听器到单个容器
+// 将事件监听器添加到克隆的容器
 function attachEventListenersToContainer(container) {
+  // 添加视频音频事件
   const video = container.querySelector('video');
-  const removeButton = container.querySelector('.remove-video');
-  
   if (video) {
-    // 重新添加鼠标事件
     container.addEventListener('mouseenter', () => {
       video.muted = false;
     });
@@ -1286,10 +1257,22 @@ function attachEventListenersToContainer(container) {
     container.addEventListener('mouseleave', () => {
       video.muted = true;
     });
+    
+    // 确保视频大小正确
+    video.addEventListener('loadedmetadata', () => {
+      // Adjust container height based on video ratio
+      const videoRatio = video.videoWidth / video.videoHeight;
+      if (videoRatio < 1) {
+        // Vertical video
+        video.style.height = 'auto';
+        video.style.width = '100%';
+      }
+    });
   }
   
+  // 添加删除按钮事件
+  const removeButton = container.querySelector('.remove-video');
   if (removeButton) {
-    // 重新添加删除按钮事件
     removeButton.addEventListener('click', () => {
       container.remove();
       if (video) {
