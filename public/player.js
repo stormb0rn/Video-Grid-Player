@@ -63,6 +63,219 @@ let currentFilterPath = null;
 // 存储原始视频布局，用于在取消过滤时恢复
 window.originalVideoLayout = null;
 
+// Initialize Supabase client
+const supabase = supabase.createClient(
+    window.SUPABASE_CONFIG.url,
+    window.SUPABASE_CONFIG.anonKey
+);
+
+// Get DOM elements
+const uploadButton = document.getElementById('uploadButton');
+const recordsButton = document.getElementById('recordsButton');
+const recordsModal = document.getElementById('recordsModal');
+const uploadModal = document.getElementById('uploadModal');
+const recordsList = document.querySelector('.records-list');
+const uploadProgress = document.querySelector('.progress-fill');
+const uploadProgressText = document.querySelector('.progress-text');
+const uploadStatus = document.querySelector('.upload-status');
+
+// Close modal buttons
+document.querySelectorAll('.close-button').forEach(button => {
+    button.addEventListener('click', () => {
+        recordsModal.classList.remove('show');
+        uploadModal.classList.remove('show');
+    });
+});
+
+// Click outside to close modal
+document.querySelectorAll('.modal').forEach(modal => {
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal.classList.remove('show');
+        }
+    });
+});
+
+// Upload button click event
+uploadButton.addEventListener('click', async () => {
+    const containers = document.querySelectorAll('.video-container');
+    if (containers.length === 0) {
+        showToast('没有可上传的媒体文件', 'info');
+        return;
+    }
+    
+    uploadModal.classList.add('show');
+    let successCount = 0;
+    let failCount = 0;
+    
+    for (let i = 0; i < containers.length; i++) {
+        const container = containers[i];
+        const video = container.querySelector('video');
+        const img = container.querySelector('img.image-preview');
+        const filename = container.querySelector('.video-filename').textContent;
+        
+        try {
+            // Update progress
+            const progress = ((i + 1) / containers.length) * 100;
+            uploadProgress.style.width = `${progress}%`;
+            uploadProgressText.textContent = `${Math.round(progress)}%`;
+            uploadStatus.textContent = `正在上传: ${filename}`;
+            
+            // Get file data
+            let fileData;
+            if (video) {
+                fileData = await fetch(video.src).then(r => r.blob());
+            } else if (img) {
+                fileData = await fetch(img.src).then(r => r.blob());
+            }
+            
+            // Upload to Supabase Storage
+            const { data: uploadData, error: uploadError } = await supabase.storage
+                .from(window.SUPABASE_CONFIG.storageBucket)
+                .upload(`${Date.now()}_${filename}`, fileData);
+            
+            if (uploadError) throw uploadError;
+            
+            // Get public URL
+            const { data: { publicUrl } } = supabase.storage
+                .from(window.SUPABASE_CONFIG.storageBucket)
+                .getPublicUrl(uploadData.path);
+            
+            // Save record to database
+            const { error: dbError } = await supabase
+                .from(window.SUPABASE_CONFIG.recordsTable)
+                .insert([
+                    {
+                        name: filename,
+                        url: publicUrl,
+                        path: uploadData.path,
+                        type: video ? 'video' : 'image'
+                    }
+                ]);
+            
+            if (dbError) throw dbError;
+            
+            successCount++;
+        } catch (error) {
+            console.error('上传失败:', error);
+            failCount++;
+        }
+    }
+    
+    // Show result
+    uploadStatus.textContent = `上传完成: ${successCount} 个成功, ${failCount} 个失败`;
+    showToast(`上传完成: ${successCount} 个成功, ${failCount} 个失败`, successCount > 0 ? 'success' : 'error');
+    
+    // 3 seconds later close modal
+    setTimeout(() => {
+        uploadModal.classList.remove('show');
+    }, 3000);
+});
+
+// Records button click event
+recordsButton.addEventListener('click', async () => {
+    recordsModal.classList.add('show');
+    await loadRecords();
+});
+
+// Load records list
+async function loadRecords() {
+    try {
+        const { data: records, error } = await supabase
+            .from(window.SUPABASE_CONFIG.recordsTable)
+            .select('*')
+            .order('created_at', { ascending: false });
+        
+        if (error) throw error;
+        
+        recordsList.innerHTML = records.map(record => `
+            <div class="record-item" data-id="${record.id}">
+                <div class="record-info">
+                    <div class="record-name">${record.name}</div>
+                    <div class="record-url">${record.url}</div>
+                </div>
+                <div class="record-actions">
+                    <button class="record-button copy" onclick="copyUrl('${record.url}')">复制链接</button>
+                    <button class="record-button edit" onclick="editRecord(${record.id}, '${record.name}')">重命名</button>
+                    <button class="record-button delete" onclick="deleteRecord(${record.id})">删除</button>
+                </div>
+            </div>
+        `).join('');
+    } catch (error) {
+        console.error('加载记录失败:', error);
+        showToast('加载记录失败', 'error');
+    }
+}
+
+// Copy URL
+async function copyUrl(url) {
+    try {
+        await navigator.clipboard.writeText(url);
+        showToast('链接已复制到剪贴板', 'success');
+    } catch (error) {
+        console.error('复制失败:', error);
+        showToast('复制失败', 'error');
+    }
+}
+
+// Edit record
+async function editRecord(id, currentName) {
+    const newName = prompt('请输入新的名称:', currentName);
+    if (!newName || newName === currentName) return;
+    
+    try {
+        const { error } = await supabase
+            .from(window.SUPABASE_CONFIG.recordsTable)
+            .update({ name: newName })
+            .eq('id', id);
+        
+        if (error) throw error;
+        
+        showToast('重命名成功', 'success');
+        await loadRecords();
+    } catch (error) {
+        console.error('重命名失败:', error);
+        showToast('重命名失败', 'error');
+    }
+}
+
+// Delete record
+async function deleteRecord(id) {
+    if (!confirm('确定要删除这条记录吗？')) return;
+    
+    try {
+        // Get record information
+        const { data: record, error: fetchError } = await supabase
+            .from(window.SUPABASE_CONFIG.recordsTable)
+            .select('path')
+            .eq('id', id)
+            .single();
+        
+        if (fetchError) throw fetchError;
+        
+        // Delete storage file
+        const { error: storageError } = await supabase.storage
+            .from(window.SUPABASE_CONFIG.storageBucket)
+            .remove([record.path]);
+        
+        if (storageError) throw storageError;
+        
+        // Delete database record
+        const { error: dbError } = await supabase
+            .from(window.SUPABASE_CONFIG.recordsTable)
+            .delete()
+            .eq('id', id);
+        
+        if (dbError) throw dbError;
+        
+        showToast('删除成功', 'success');
+        await loadRecords();
+    } catch (error) {
+        console.error('删除失败:', error);
+        showToast('删除失败', 'error');
+    }
+}
+
 // Ensure DOM elements are loaded
 document.addEventListener('DOMContentLoaded', function() {
   setStatus('Page loaded, waiting for media files...');
@@ -1876,4 +2089,536 @@ function truncateText(ctx, text, maxWidth) {
   }
   
   return truncated + '...';
+}
+
+// 添加新的性能优化配置
+const PERFORMANCE_CONFIG = {
+  lazyLoadDistance: 300,      // 懒加载检测距离（像素）
+  batchSize: 15,              // 每批处理的视频数量
+  processingDelay: 50,        // 批处理间隔时间（毫秒）
+  cleanupInterval: 30000,     // 自动清理不可见视频的间隔（毫秒）
+  maxVisible: 50,             // 最大同时可见的视频数量
+  virtualScrolling: true,     // 启用虚拟滚动
+  usePlaceholders: true,      // 使用占位符
+};
+
+// 存储已加载的视频对象，便于后续清理
+let videoRegistry = new Map();
+
+// 页面可见性检测变量
+let isPageVisible = true;
+
+// 添加页面可见性监听
+document.addEventListener('visibilitychange', function() {
+  isPageVisible = document.visibilityState === 'visible';
+  
+  // 页面可见时重新加载可视区域的视频
+  if (isPageVisible) {
+    refreshVisibleVideos();
+  } else {
+    // 页面不可见时暂停所有视频播放
+    pauseAllVideos();
+  }
+});
+
+// 暂停所有视频播放
+function pauseAllVideos() {
+  document.querySelectorAll('video').forEach(video => {
+    try {
+      if (!video.paused) {
+        video.pause();
+      }
+    } catch (e) {
+      console.error('无法暂停视频:', e);
+    }
+  });
+}
+
+// 虚拟滚动管理器
+class VirtualScrollManager {
+  constructor(container, options = {}) {
+    this.container = container;
+    this.options = Object.assign({}, PERFORMANCE_CONFIG, options);
+    this.items = [];
+    this.visibleItems = new Set();
+    this.lastScrollY = 0;
+    this.ticking = false;
+    this.initialized = false;
+    
+    // 绑定滚动监听
+    this.scrollHandler = this.onScroll.bind(this);
+    this.resizeHandler = this.onResize.bind(this);
+    
+    // 初始化容器样式
+    if (this.container) {
+      // 确保容器有相对或绝对定位，用于放置占位符
+      const position = window.getComputedStyle(this.container).position;
+      if (position !== 'relative' && position !== 'absolute') {
+        this.container.style.position = 'relative';
+      }
+      
+      // 添加事件监听
+      window.addEventListener('scroll', this.scrollHandler, { passive: true });
+      window.addEventListener('resize', this.resizeHandler, { passive: true });
+      this.initialized = true;
+    }
+  }
+  
+  // 销毁管理器，移除事件监听
+  destroy() {
+    if (this.initialized) {
+      window.removeEventListener('scroll', this.scrollHandler);
+      window.removeEventListener('resize', this.resizeHandler);
+      this.initialized = false;
+    }
+  }
+  
+  // 添加元素到管理器
+  addItem(element, data = {}) {
+    if (!element) return;
+    
+    const item = {
+      element: element,
+      data: data,
+      visible: false,
+      rect: null,
+      placeholder: null
+    };
+    
+    this.items.push(item);
+    this.updateItemMetrics(item);
+    this.checkItemVisibility(item);
+    
+    return item;
+  }
+  
+  // 移除元素
+  removeItem(element) {
+    const index = this.items.findIndex(item => item.element === element);
+    if (index >= 0) {
+      const item = this.items[index];
+      if (item.visible) {
+        this.visibleItems.delete(item);
+      }
+      if (item.placeholder) {
+        item.placeholder.remove();
+      }
+      this.items.splice(index, 1);
+    }
+  }
+  
+  // 清空所有元素
+  clearItems() {
+    this.items.forEach(item => {
+      if (item.placeholder) {
+        item.placeholder.remove();
+      }
+    });
+    this.items = [];
+    this.visibleItems.clear();
+  }
+  
+  // 滚动事件处理
+  onScroll() {
+    this.lastScrollY = window.scrollY;
+    
+    if (!this.ticking) {
+      window.requestAnimationFrame(() => {
+        this.updateVisibleItems();
+        this.ticking = false;
+      });
+      this.ticking = true;
+    }
+  }
+  
+  // 窗口大小变化事件处理
+  onResize() {
+    this.updateAllItemMetrics();
+    this.updateVisibleItems();
+  }
+  
+  // 更新所有元素的位置信息
+  updateAllItemMetrics() {
+    this.items.forEach(item => this.updateItemMetrics(item));
+  }
+  
+  // 更新单个元素的位置信息
+  updateItemMetrics(item) {
+    if (!item.element) return;
+    
+    item.rect = item.element.getBoundingClientRect();
+  }
+  
+  // 更新可见元素
+  updateVisibleItems() {
+    if (!isPageVisible || !this.initialized) return;
+    
+    // 获取可视区域范围
+    const viewportTop = this.lastScrollY;
+    const viewportBottom = viewportTop + window.innerHeight;
+    const lazyDistance = this.options.lazyLoadDistance;
+    
+    // 扩展可视区域包括懒加载范围
+    const extendedTop = viewportTop - lazyDistance;
+    const extendedBottom = viewportBottom + lazyDistance;
+    
+    // 更新每个元素的可见性
+    this.items.forEach(item => {
+      if (!item.element) return;
+      
+      // 更新元素位置信息
+      this.updateItemMetrics(item);
+      
+      // 检查是否在扩展可视区域内
+      const wasVisible = item.visible;
+      this.checkItemVisibility(item, extendedTop, extendedBottom);
+      
+      // 如果可见性发生变化
+      if (wasVisible !== item.visible) {
+        if (item.visible) {
+          // 变为可见
+          this.visibleItems.add(item);
+          this.onItemVisible(item);
+        } else {
+          // 变为不可见
+          this.visibleItems.delete(item);
+          this.onItemHidden(item);
+        }
+      }
+    });
+    
+    // 如果可见元素超过最大数量，隐藏最远的元素
+    if (this.visibleItems.size > this.options.maxVisible) {
+      this.limitVisibleItems();
+    }
+  }
+  
+  // 检查元素是否在可视区域内
+  checkItemVisibility(item, extendedTop, extendedBottom) {
+    if (!item.rect) return;
+    
+    const viewportTop = extendedTop || (this.lastScrollY - this.options.lazyLoadDistance);
+    const viewportBottom = extendedBottom || (this.lastScrollY + window.innerHeight + this.options.lazyLoadDistance);
+    
+    const elementTop = this.lastScrollY + item.rect.top;
+    const elementBottom = elementTop + item.rect.height;
+    
+    // 元素与可视区域有交叉
+    item.visible = !(elementBottom < viewportTop || elementTop > viewportBottom);
+  }
+  
+  // 限制可见元素数量
+  limitVisibleItems() {
+    if (this.visibleItems.size <= this.options.maxVisible) return;
+    
+    // 计算每个可见元素到视口中心的距离
+    const viewportMiddle = this.lastScrollY + (window.innerHeight / 2);
+    
+    // 将可见元素转换为数组并按距离排序
+    const sortedItems = Array.from(this.visibleItems).map(item => {
+      const itemMiddle = this.lastScrollY + item.rect.top + (item.rect.height / 2);
+      const distance = Math.abs(viewportMiddle - itemMiddle);
+      return { item, distance };
+    }).sort((a, b) => a.distance - b.distance);
+    
+    // 保留最靠近视口的元素
+    const keepItems = sortedItems.slice(0, this.options.maxVisible);
+    const removeItems = sortedItems.slice(this.options.maxVisible);
+    
+    // 隐藏多余的元素
+    removeItems.forEach(({ item }) => {
+      this.visibleItems.delete(item);
+      this.onItemHidden(item);
+    });
+  }
+  
+  // 元素变为可见时的回调
+  onItemVisible(item) {
+    if (!item.element) return;
+    
+    // 对于视频元素，加载视频源并开始播放（如果自动播放）
+    const video = item.element.querySelector('video');
+    if (video) {
+      if (video.dataset.src && !video.src) {
+        video.src = video.dataset.src;
+        video.load();
+      }
+    }
+    
+    // 移除占位符（如果有）
+    if (item.placeholder && this.options.usePlaceholders) {
+      item.placeholder.style.display = 'none';
+    }
+    
+    // 显示实际元素
+    item.element.style.display = '';
+  }
+  
+  // 元素变为不可见时的回调
+  onItemHidden(item) {
+    if (!item.element) return;
+    
+    // 对于视频元素，可以选择暂停并清空源以节省资源
+    const video = item.element.querySelector('video');
+    if (video) {
+      if (!video.paused) {
+        video.pause();
+      }
+      
+      // 是否在不可见时卸载视频源取决于优化策略
+      if (this.options.unloadInvisible) {
+        if (!video.dataset.src) {
+          video.dataset.src = video.src;
+        }
+        video.removeAttribute('src');
+        video.load(); // 释放视频资源
+      }
+    }
+    
+    // 使用占位符替换实际元素（如果启用）
+    if (this.options.usePlaceholders) {
+      if (!item.placeholder) {
+        item.placeholder = this.createPlaceholder(item);
+        if (item.element.parentNode) {
+          item.element.parentNode.appendChild(item.placeholder);
+        }
+      }
+      item.placeholder.style.display = '';
+      item.element.style.display = 'none';
+    }
+  }
+  
+  // 创建占位符元素
+  createPlaceholder(item) {
+    const placeholder = document.createElement('div');
+    placeholder.className = 'virtual-placeholder';
+    placeholder.style.width = `${item.rect.width}px`;
+    placeholder.style.height = `${item.rect.height}px`;
+    placeholder.style.position = 'absolute';
+    placeholder.style.top = `${item.rect.top}px`;
+    placeholder.style.left = `${item.rect.left}px`;
+    placeholder.style.background = '#2a2a2a';
+    placeholder.style.borderRadius = '8px';
+    
+    return placeholder;
+  }
+  
+  // 刷新所有元素的可见性
+  refresh() {
+    this.updateAllItemMetrics();
+    this.updateVisibleItems();
+  }
+}
+
+// 创建虚拟滚动管理器实例
+let virtualScroller = null;
+
+// 初始化虚拟滚动
+function initVirtualScrolling() {
+  if (PERFORMANCE_CONFIG.virtualScrolling && videoGrid) {
+    if (virtualScroller) {
+      virtualScroller.destroy();
+    }
+    
+    virtualScroller = new VirtualScrollManager(videoGrid);
+    
+    // 刷新所有视频元素
+    refreshVirtualScroller();
+  }
+}
+
+// 刷新虚拟滚动管理器中的元素
+function refreshVirtualScroller() {
+  if (!virtualScroller) return;
+  
+  // 清空当前元素
+  virtualScroller.clearItems();
+  
+  // 添加所有视频容器到虚拟滚动管理器
+  const containers = document.querySelectorAll('.video-container');
+  containers.forEach(container => {
+    virtualScroller.addItem(container);
+  });
+  
+  // 初始更新可见性
+  virtualScroller.refresh();
+}
+
+// 刷新可见视频的方法
+function refreshVisibleVideos() {
+  if (virtualScroller) {
+    virtualScroller.refresh();
+  } else {
+    // 如果没有启用虚拟滚动，则使用基本的懒加载
+    basicLazyLoad();
+  }
+}
+
+// 基本的懒加载实现
+function basicLazyLoad() {
+  const viewportTop = window.scrollY;
+  const viewportBottom = viewportTop + window.innerHeight;
+  const lazyDistance = PERFORMANCE_CONFIG.lazyLoadDistance;
+  
+  // 查找所有视频元素
+  document.querySelectorAll('.video-container').forEach(container => {
+    const rect = container.getBoundingClientRect();
+    const elementTop = viewportTop + rect.top;
+    const elementBottom = elementTop + rect.height;
+    
+    // 检查是否在扩展可视区域内
+    const isVisible = !(elementBottom < viewportTop - lazyDistance || 
+                         elementTop > viewportBottom + lazyDistance);
+    
+    // 处理视频元素的加载/卸载
+    const video = container.querySelector('video');
+    if (video) {
+      if (isVisible) {
+        // 视频在可视区域内，确保加载
+        if (video.dataset.src && !video.src) {
+          video.src = video.dataset.src;
+          video.load();
+        }
+      } else {
+        // 视频不在可视区域，可选择暂停和卸载
+        if (!video.paused) {
+          video.pause();
+        }
+        
+        // 根据配置决定是否卸载不可见视频
+        if (PERFORMANCE_CONFIG.unloadInvisible) {
+          if (!video.dataset.src) {
+            video.dataset.src = video.src;
+          }
+          video.removeAttribute('src');
+          video.load(); // 释放视频资源
+        }
+      }
+    }
+  });
+}
+
+// 清理未使用的资源
+function cleanupResources() {
+  if (!isPageVisible) return;
+  
+  // 修改processVideoFiles函数，实现批量处理
+  const originalProcessVideoFiles = processVideoFiles;
+  processVideoFiles = function(files) {
+    // 存储所有待处理的文件
+    const allFiles = Array.from(files);
+    setStatus(`处理 ${allFiles.length} 个文件，分批加载中...`);
+    
+    // 处理一批文件的函数
+    const processBatch = (startIndex) => {
+      const endIndex = Math.min(startIndex + PERFORMANCE_CONFIG.batchSize, allFiles.length);
+      const batch = allFiles.slice(startIndex, endIndex);
+      
+      if (batch.length === 0) {
+        // 所有批次处理完成
+        setStatus(`全部 ${allFiles.length} 个文件加载完成`);
+        
+        // 初始化虚拟滚动
+        initVirtualScrolling();
+        return;
+      }
+      
+      // 更新状态
+      setStatus(`处理第 ${startIndex + 1}-${endIndex} 个文件（共 ${allFiles.length} 个）...`);
+      
+      // 处理当前批次
+      originalProcessVideoFiles(batch);
+      
+      // 调度下一批次处理
+      setTimeout(() => {
+        processBatch(endIndex);
+      }, PERFORMANCE_CONFIG.processingDelay);
+    };
+    
+    // 开始第一批处理
+    processBatch(0);
+  };
+
+  // 修改createVideoElement函数，实现懒加载
+  const originalCreateVideoElement = createVideoElement;
+  createVideoElement = function(file, parentContainer) {
+    const container = originalCreateVideoElement(file, parentContainer);
+    
+    // 找到视频元素
+    const video = container.querySelector('video');
+    if (video && PERFORMANCE_CONFIG.lazyLoad) {
+      // 保存原始src到data属性
+      video.dataset.src = video.src;
+      video.removeAttribute('src');
+      
+      // 注册到视频注册表
+      videoRegistry.set(video, {
+        file: file,
+        lastActive: Date.now()
+      });
+    }
+    
+    // 添加到虚拟滚动管理器
+    if (virtualScroller) {
+      virtualScroller.addItem(container);
+    }
+    
+    return container;
+  };
+}
+
+// 添加页面加载完成后的初始化
+document.addEventListener('DOMContentLoaded', function() {
+  // 已有的DOMContentLoaded代码保持不变
+  // 在末尾添加以下代码
+  
+  // 初始化性能优化
+  cleanupResources();
+  
+  // 添加滚动事件监听
+  window.addEventListener('scroll', function() {
+    if (!virtualScroller) {
+      refreshVisibleVideos();
+    }
+  }, { passive: true });
+  
+  // 设置定期清理定时器
+  setInterval(function() {
+    // 清理长时间不活跃的视频资源
+    if (videoRegistry.size > 0) {
+      const now = Date.now();
+      const maxAge = 60000; // 1分钟不活跃则清理
+      
+      videoRegistry.forEach((info, video) => {
+        if (now - info.lastActive > maxAge && !isElementInViewport(video)) {
+          if (!video.paused) {
+            video.pause();
+          }
+          
+          if (video.src) {
+            video.dataset.src = video.src;
+            video.removeAttribute('src');
+            video.load(); // 释放资源
+            
+            // 更新注册表
+            info.lastActive = now - maxAge + 5000; // 给一个缓冲期
+            videoRegistry.set(video, info);
+          }
+        }
+      });
+    }
+  }, PERFORMANCE_CONFIG.cleanupInterval);
+});
+
+// 辅助函数：检查元素是否在视口内
+function isElementInViewport(el) {
+  if (!el || !el.getBoundingClientRect) return false;
+  
+  const rect = el.getBoundingClientRect();
+  return (
+    rect.top >= -PERFORMANCE_CONFIG.lazyLoadDistance &&
+    rect.left >= -PERFORMANCE_CONFIG.lazyLoadDistance &&
+    rect.bottom <= (window.innerHeight + PERFORMANCE_CONFIG.lazyLoadDistance) &&
+    rect.right <= (window.innerWidth + PERFORMANCE_CONFIG.lazyLoadDistance)
+  );
 }

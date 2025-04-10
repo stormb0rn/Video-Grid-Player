@@ -1,37 +1,79 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh">
 <head>
-  <meta charset="UTF-8">
-  <title>Media Grid Player</title>
-  <link rel="stylesheet" href="styles.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>视频网格播放器</title>
+    <link rel="stylesheet" href="styles.css">
+    <!-- 添加 Supabase 客户端库 -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
-  <div class="header">
-    <div class="header-content">
-      <h1>Media Grid Player</h1>
-      <div class="subtitle">Video & Image Viewer</div>
+    <div class="container">
+        <div class="header">
+            <h1>视频网格播放器</h1>
+            <div class="controls">
+                <button id="screenshotAllButton" class="screenshot-button">📷 截取所有视频</button>
+                <button id="uploadButton" class="upload-button">⬆️ 上传到云端</button>
+                <button id="recordsButton" class="records-button">📋 查看记录</button>
+                <button id="downloadAll" class="download-button" disabled>⬇️ 下载全部</button>
+            </div>
+        </div>
+        
+        <div id="dropZone" class="drop-zone">
+            <div class="drop-zone-content">
+                <div class="drop-zone-icon">📁</div>
+                <div class="drop-zone-text">拖放视频文件到这里</div>
+                <div class="drop-zone-hint">或者点击选择文件</div>
+                <input type="file" id="fileInput" multiple accept="video/*,image/*" style="display: none;">
+            </div>
+        </div>
+        
+        <div class="status-bar">
+            <div id="statusText" class="status-text">准备就绪</div>
+            <div id="currentCount" class="current-count">0 个文件</div>
+        </div>
+        
+        <div id="videoGrid" class="video-grid"></div>
     </div>
-    <button id="downloadAll" class="download-button">Download All</button>
-  </div>
-  <div class="drop-zone" id="dropZone" ondrop="event.preventDefault();" ondragover="event.preventDefault();">
-    <div class="upload-icon">⬆️</div>
-    <p>Drop videos or images here</p>
-    <p class="drop-tip">(or click to browse)</p>
-    <p class="or-divider">or</p>
-    <button id="folderSelect" class="folder-button">Select Folder</button>
-    <p class="video-count"><span id="currentCount">0</span>/1000 files · Maximum 1000 files allowed</p>
-  </div>
-  
-  <div class="video-grid" id="videoGrid"></div>
-  
-  <!-- Status area for debugging -->
-  <div class="status-area" id="statusArea">
-    <p>Status: <span id="statusText">Ready</span></p>
-  </div>
-  
-  <!-- Toast notifications container -->
-  <div class="toast-container" id="toastContainer"></div>
-  
-  <script src="player.js"></script>
+
+    <!-- 记录管理模态框 -->
+    <div id="recordsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>上传记录</h2>
+                <button class="close-button">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="records-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 上传进度模态框 -->
+    <div id="uploadModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>上传进度</h2>
+                <button class="close-button">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="upload-progress">
+                    <div class="progress-bar">
+                        <div class="progress-fill"></div>
+                    </div>
+                    <div class="progress-text">0%</div>
+                </div>
+                <div class="upload-status"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="toastContainer" class="toast-container"></div>
+
+    <!-- 配置文件 -->
+    <script src="config.js"></script>
+    <!-- 主程序 -->
+    <script src="player.js"></script>
 </body>
 </html>
