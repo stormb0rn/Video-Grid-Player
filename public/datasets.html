@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数据集管理 - 视频网格</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="icon" href="icons/favicon.ico" type="image/x-icon">
+</head>
+<body class="bg-gray-900 text-white font-sans">
+
+    <header class="bg-gray-800 shadow-md p-4 flex justify-between items-center">
+        <a href="index.html" class="text-xl font-bold">视频网格播放器</a>
+        <nav>
+            <a href="datasets.html" class="text-blue-400 hover:text-blue-300">数据集管理</a>
+        </nav>
+    </header>
+
+    <main class="flex-grow p-4 md:p-6 lg:p-8">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full">
+            <!-- Left Panel: Dataset List -->
+            <div class="panel lg:col-span-1">
+                <div class="panel-header">
+                    <h2 class="text-lg font-semibold">数据集</h2>
+                    <button id="addDatasetBtn" class="add-btn">+</button>
+                </div>
+                <ul id="datasetList" class="panel-body">
+                    <!-- Datasets will be loaded here -->
+                </ul>
+            </div>
+
+            <!-- Right Panel: Dataset Content -->
+            <div class="panel lg:col-span-2">
+                <div class="panel-header">
+                    <h2 id="currentDatasetName" class="text-lg font-semibold">请选择一个数据集</h2>
+                    <button id="renameDatasetBtn" class="button-style mr-2" disabled>重命名</button>
+                    <button id="deleteDatasetBtn" class="delete-btn" disabled>删除数据集</button>
+                </div>
+                <div id="datasetContent" class="panel-body">
+                    <div id="fileUploadContainer" class="file-upload-container">
+                        <div class="border-2 border-dashed border-gray-600 rounded-lg p-8 text-center">
+                            <p class="mb-4">将文件或文件夹拖放到此处，或</p>
+                            <input type="file" id="fileInput" multiple webkitdirectory hidden>
+                            <button id="browseFilesBtn" class="button-style">选择文件夹</button>
+                        </div>
+                    </div>
+                    <ul id="videoList" class="video-list mt-4 space-y-2">
+                        <!-- Videos of the selected dataset will be shown here -->
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </main>
+    
+    <div id="toastContainer" class="fixed top-5 right-5 z-50"></div>
+
+    <div id="createDatasetModal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="text-lg font-bold">创建新数据集</h2>
+                <button class="close-button">&times;</button>
+            </div>
+            <div class="modal-body">
+                <label for="newDatasetName" class="block mb-2">数据集名称</label>
+                <input type="text" id="newDatasetName" class="modal-input" placeholder="输入新数据集的名称">
+            </div>
+            <div class="modal-footer">
+                <button id="cancelCreateBtn" class="button-style-secondary">取消</button>
+                <button id="confirmCreateBtn" class="button-style">创建</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="renameDatasetModal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="text-lg font-bold">重命名数据集</h2>
+                <button class="close-button">&times;</button>
+            </div>
+            <div class="modal-body">
+                <label for="renameDatasetName" class="block mb-2">新名称</label>
+                <input type="text" id="renameDatasetName" class="modal-input" placeholder="输入新的数据集名称">
+            </div>
+            <div class="modal-footer">
+                <button id="cancelRenameBtn" class="button-style-secondary">取消</button>
+                <button id="confirmRenameBtn" class="button-style">确定</button>
+            </div>
+        </div>
+    </div>
+    
+    <script src="config.js"></script>
+    <script src="datasets.js"></script>
+</body>
+</html> 
