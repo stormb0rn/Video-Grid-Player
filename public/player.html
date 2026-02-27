@@ -1,79 +1,103 @@
 <!DOCTYPE html>
-<html lang="zh">
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>视频网格播放器</title>
+    <title>播放器 - 视频网格</title>
     <link rel="stylesheet" href="styles.css">
-    <!-- 添加 Supabase 客户端库 -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="icon" href="icons/favicon.ico" type="image/x-icon">
 </head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h1>视频网格播放器</h1>
-            <div class="controls">
-                <button id="screenshotAllButton" class="screenshot-button">📷 截取所有视频</button>
-                <button id="uploadButton" class="upload-button">⬆️ 上传到云端</button>
-                <button id="recordsButton" class="records-button">📋 查看记录</button>
-                <button id="downloadAll" class="download-button" disabled>⬇️ 下载全部</button>
-            </div>
-        </div>
-        
-        <div id="dropZone" class="drop-zone">
-            <div class="drop-zone-content">
-                <div class="drop-zone-icon">📁</div>
-                <div class="drop-zone-text">拖放视频文件到这里</div>
-                <div class="drop-zone-hint">或者点击选择文件</div>
-                <input type="file" id="fileInput" multiple accept="video/*,image/*" style="display: none;">
-            </div>
-        </div>
-        
-        <div class="status-bar">
-            <div id="statusText" class="status-text">准备就绪</div>
-            <div id="currentCount" class="current-count">0 个文件</div>
-        </div>
-        
-        <div id="videoGrid" class="video-grid"></div>
-    </div>
+<body class="bg-gray-900 text-white font-sans">
 
-    <!-- 记录管理模态框 -->
-    <div id="recordsModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>上传记录</h2>
-                <button class="close-button">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div class="records-list"></div>
-            </div>
-        </div>
-    </div>
+    <header class="bg-gray-800 shadow-md p-4 flex justify-between items-center">
+        <a href="index.html" class="text-xl font-bold">视频网格播放器</a>
+        <nav class="flex gap-4">
+            <a href="datasets.html" class="text-blue-400 hover:text-blue-300 text-sm">数据集管理</a>
+        </nav>
+    </header>
 
-    <!-- 上传进度模态框 -->
-    <div id="uploadModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>上传进度</h2>
-                <button class="close-button">&times;</button>
+    <main class="p-4">
+        <div class="player-header mb-4">
+            <h1 id="playerTitle" class="text-2xl font-bold">正在加载...</h1>
+            <p id="playerSubtitle" class="text-sm text-gray-400"></p>
+        </div>
+        
+        <!-- Controls -->
+        <div class="controls-container backdrop-blur-sm p-4 rounded-lg sticky top-2 z-10" style="background-color: rgba(0,0,0,0.3)">
+            <!-- Top Row: Action Buttons -->
+            <div class="flex flex-wrap gap-2 mb-4">
+                <button id="playAllBtn" class="control-btn">▶ Play All</button>
+                <button id="pauseAllBtn" class="control-btn">❚❚ Pause All</button>
+                <button id="muteAllBtn" class="control-btn">🔇 Mute All</button>
+                <button id="unmuteAllBtn" class="control-btn">🔊 Unmute All</button>
+                <button id="selectAllBtn" class="control-btn">✅ Select All</button>
+                <button id="deselectAllBtn" class="control-btn">❌ Deselect All</button>
+                <button id="showSelectedBtn" class="control-btn">📋 Show Selected</button>
+                <button id="clearAllBtn" class="control-btn">🗑️ Clear All</button>
+                <button id="shareLinkBtn" class="control-btn">🔗 Share Link</button>
+                <button id="compareBtn" class="control-btn">⚡ Compare</button>
             </div>
-            <div class="modal-body">
-                <div class="upload-progress">
-                    <div class="progress-bar">
-                        <div class="progress-fill"></div>
-                    </div>
-                    <div class="progress-text">0%</div>
+
+            <!-- Bottom Row: Settings -->
+            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 items-center">
+                <div class="flex items-center gap-2">
+                    <label for="videosPerRow" class="text-sm">Videos per row:</label>
+                    <input type="range" id="videosPerRow" min="1" max="12" value="4" class="w-full">
+                    <span id="videosPerRowValue" class="text-sm font-mono">4</span>
                 </div>
-                <div class="upload-status"></div>
+                <div class="flex items-center gap-2">
+                    <span class="text-sm">Aspect ratio:</span>
+                    <div class="flex gap-1">
+                        <button class="aspect-ratio-btn active" data-ratio="auto">Auto</button>
+                        <button class="aspect-ratio-btn" data-ratio="16/9">16:9</button>
+                        <button class="aspect-ratio-btn" data-ratio="4/3">4:3</button>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <label for="sortBy" class="text-sm">Sort by:</label>
+                    <select id="sortBy" class="bg-gray-700 text-white rounded p-1 text-sm">
+                        <option value="upload_order">Upload Order</option>
+                        <option value="name_asc">Name (A-Z)</option>
+                        <option value="name_desc">Name (Z-A)</option>
+                    </select>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="text-sm">Playback speed:</span>
+                    <div class="flex gap-1">
+                        <button class="playback-speed-btn" data-speed="0.5">0.5x</button>
+                        <button class="playback-speed-btn active" data-speed="1">1x</button>
+                        <button class="playback-speed-btn" data-speed="1.5">1.5x</button>
+                        <button class="playback-speed-btn" data-speed="2">2x</button>
+                    </div>
+                </div>
+                <div class="text-sm">
+                    Selected: <span id="selectedCount">0</span> videos
+                </div>
             </div>
         </div>
-    </div>
+
+        <!-- Compare mode dataset selector -->
+        <div id="comparePanel" class="compare-panel hidden">
+            <div class="flex items-center gap-4 flex-wrap">
+                <span class="text-sm font-bold">Compare with:</span>
+                <select id="compareDatasetSelect" class="bg-gray-700 text-white rounded p-1 text-sm">
+                    <option value="">-- Select a dataset --</option>
+                </select>
+                <button id="startCompareBtn" class="control-btn">Start Compare</button>
+                <button id="exitCompareBtn" class="control-btn">Exit Compare</button>
+            </div>
+            <p id="compareStatus" class="text-sm text-gray-400 mt-2"></p>
+        </div>
+
+        <div id="videoGrid" class="video-grid mt-4">
+            <!-- Videos will be dynamically added here -->
+        </div>
+    </main>
 
     <div id="toastContainer" class="toast-container"></div>
-
-    <!-- 配置文件 -->
+    
     <script src="config.js"></script>
-    <!-- 主程序 -->
     <script src="player.js"></script>
 </body>
 </html>

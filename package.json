@@ -1,0 +1,25 @@
+{
+  "name": "video-grid-player-tests",
+  "version": "1.0.0",
+  "description": "Core feature tests for Video Grid Player",
+  "type": "module",
+  "scripts": {
+    "test": "node test_core_features.mjs",
+    "test:e2e": "npx playwright test",
+    "build:css": "./node_modules/.bin/postcss ./public/css/input.css -o ./public/styles.css --config ./postcss.config.mjs",
+    "build": "npm run build:css",
+    "dev": "pkill -f 'python3 -m http.server 8000' || true && python3 -m http.server 8000 --directory public"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.0.0",
+    "@tailwindcss/postcss": "^4.1.10"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.53.1",
+    "autoprefixer": "^10.4.21",
+    "playwright": "^1.53.1",
+    "postcss": "^8.5.6",
+    "postcss-cli": "^11.0.1",
+    "tailwindcss": "^4.1.10"
+  }
+}

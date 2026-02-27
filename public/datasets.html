@@ -53,7 +53,7 @@
         </div>
     </main>
     
-    <div id="toastContainer" class="fixed top-5 right-5 z-50"></div>
+    <div id="toastContainer" class="toast-container"></div>
 
     <div id="createDatasetModal" class="modal-overlay hidden">
         <div class="modal-content">
@@ -89,6 +89,23 @@
         </div>
     </div>
     
+    <div id="compareSelectModal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="text-lg font-bold">选择对比数据集</h2>
+                <button class="close-button">&times;</button>
+            </div>
+            <div class="modal-body">
+                <label class="block mb-2">选择要对比的目标数据集</label>
+                <select id="compareTargetSelect" class="modal-input"></select>
+            </div>
+            <div class="modal-footer">
+                <button id="cancelCompareBtn" class="button-style-secondary">取消</button>
+                <button id="confirmCompareBtn" class="button-style">开始对比</button>
+            </div>
+        </div>
+    </div>
+
     <script src="config.js"></script>
     <script src="datasets.js"></script>
 </body>

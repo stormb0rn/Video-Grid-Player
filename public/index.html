@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>视频网格播放器 - Video Grid Player</title>
+    <meta name="description" content="一个简单的视频网格播放器，支持数据集管理、批量播放和云端同步">
+    <link rel="icon" href="icons/favicon.ico" type="image/x-icon">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="bg-gray-900 text-white flex flex-col items-center justify-center min-h-screen p-5 text-center">
+    <div class="mb-16">
+        <h1 class="text-4xl font-bold mb-2">视频数据集播放器</h1>
+        <p class="text-gray-400 text-lg">管理、播放和创建您的云端视频数据集</p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-4xl">
+        <a href="datasets.html" class="action-card">
+            <div>
+                <h2 class="text-2xl font-bold mb-2">🗂️ 数据集管理</h2>
+                <p class="text-gray-400 text-sm flex-grow">创建、浏览、填充和删除您的云端视频数据集。</p>
+            </div>
+            <span class="arrow text-2xl self-end transition-transform duration-200 ease-in-out">→</span>
+        </a>
+        <a href="player.html" class="action-card">
+            <div>
+                <h2 class="text-2xl font-bold mb-2">🎬 批量播放器</h2>
+                <p class="text-gray-400 text-sm flex-grow">直接预览本地视频文件，或查看从云端加载的数据集内容。</p>
+            </div>
+            <span class="arrow text-2xl self-end transition-transform duration-200 ease-in-out">→</span>
+        </a>
+    </div>
+    
+    <footer class="absolute bottom-5 text-gray-600 text-xs">
+        <p>Video Grid Player &copy; 2025</p>
+    </footer>
+</body>
+</html> 

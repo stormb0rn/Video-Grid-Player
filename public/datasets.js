@@ -114,7 +114,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         try {
             const { data: videos, error } = await supabaseClient
                 .from('videos')
-                .select('id, file_name, public_url')
+                .select('id, file_name, public_url, storage_path')
                 .eq('dataset_id', datasetId)
                 .order('created_at', { ascending: true });
 
@@ -122,14 +122,25 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             videoList.innerHTML = '';
             if (videos.length > 0) {
-                 const openInPlayerBtn = document.createElement('button');
+                // Button group container
+                const btnGroup = document.createElement('div');
+                btnGroup.className = 'flex gap-2 mb-4';
+
+                const openInPlayerBtn = document.createElement('button');
                 openInPlayerBtn.textContent = '在播放器中打开';
-                openInPlayerBtn.className = 'button-style mb-4 w-full';
+                openInPlayerBtn.className = 'button-style flex-grow';
                 openInPlayerBtn.onclick = () => {
                      window.location.href = `player.html?dataset=${datasetId}`;
                 };
-                // Prepend button to the list
-                videoList.insertBefore(openInPlayerBtn, videoList.firstChild);
+                btnGroup.appendChild(openInPlayerBtn);
+
+                const compareWithBtn = document.createElement('button');
+                compareWithBtn.textContent = '与其他数据集对比';
+                compareWithBtn.className = 'button-style-secondary';
+                compareWithBtn.onclick = () => openCompareSelector(datasetId);
+                btnGroup.appendChild(compareWithBtn);
+
+                videoList.insertBefore(btnGroup, videoList.firstChild);
             }
            
             videos.forEach(video => {
@@ -300,6 +311,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     fileInput.addEventListener('change', (e) => {
         if (e.target.files.length > 0) {
             handleFiles(e.target.files);
+            fileInput.value = ''; // Reset so same folder can be re-selected
         }
     });
     
@@ -491,6 +503,52 @@ document.addEventListener('DOMContentLoaded', async () => {
     renameDatasetNameInput.addEventListener('keyup', (e) => {
         if (e.key === 'Enter') handleRenameDataset();
     });
+
+    // --- Compare Selector Modal ---
+    const compareSelectModal = document.getElementById('compareSelectModal');
+    const compareTargetSelect = document.getElementById('compareTargetSelect');
+    const confirmCompareBtn = document.getElementById('confirmCompareBtn');
+    const cancelCompareBtn = document.getElementById('cancelCompareBtn');
+    let compareBaseId = null;
+
+    cancelCompareBtn.addEventListener('click', () => compareSelectModal.classList.add('hidden'));
+    compareSelectModal.querySelector('.close-button').addEventListener('click', () => compareSelectModal.classList.add('hidden'));
+
+    confirmCompareBtn.addEventListener('click', () => {
+        const targetId = compareTargetSelect.value;
+        if (!targetId || !compareBaseId) return;
+        window.location.href = `player.html?dataset=${compareBaseId}&compare=${targetId}`;
+    });
+
+    async function openCompareSelector(baseDatasetId) {
+        compareBaseId = baseDatasetId;
+        try {
+            const { data: datasets, error } = await supabaseClient
+                .from('datasets')
+                .select('id, name')
+                .neq('id', baseDatasetId)
+                .order('created_at', { ascending: false });
+            if (error) throw error;
+
+            if (datasets.length === 0) {
+                showToast('没有其他数据集可以对比', 'warning');
+                return;
+            }
+
+            compareTargetSelect.innerHTML = '';
+            datasets.forEach(ds => {
+                const option = document.createElement('option');
+                option.value = ds.id;
+                option.textContent = ds.name;
+                compareTargetSelect.appendChild(option);
+            });
+
+            compareSelectModal.classList.remove('hidden');
+        } catch (err) {
+            console.error('Compare selector error:', err);
+            showToast('加载数据集列表失败', 'error');
+        }
+    }
 
     // --- Initial Load ---
     loadDatasets();
